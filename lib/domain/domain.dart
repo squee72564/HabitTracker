@@ -1,1 +1,9 @@
-// Domain entities, value objects, and business rules live here.
+export 'entities/habit.dart';
+export 'entities/habit_event.dart';
+export 'time/local_day_key.dart';
+export 'time/timezone_offset.dart';
+export 'validation/habit_validation.dart';
+export 'value_objects/domain_constraints.dart';
+export 'value_objects/habit_event_source.dart';
+export 'value_objects/habit_event_type.dart';
+export 'value_objects/habit_mode.dart';
