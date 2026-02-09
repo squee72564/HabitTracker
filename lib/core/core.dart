@@ -1,1 +1,8 @@
-// Core layer placeholders and shared primitives live here.
+export 'error/app_error_boundary.dart';
+export 'logging/app_logger.dart';
+export 'theme/app_colors.dart';
+export 'theme/app_radii.dart';
+export 'theme/app_spacing.dart';
+export 'theme/app_theme.dart';
+export 'theme/app_typography.dart';
+export 'theme/semantic_colors.dart';
