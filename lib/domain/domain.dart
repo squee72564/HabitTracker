@@ -1,5 +1,7 @@
 export 'entities/habit.dart';
 export 'entities/habit_event.dart';
+export 'repositories/habit_event_repository.dart';
+export 'repositories/habit_repository.dart';
 export 'time/local_day_key.dart';
 export 'time/timezone_offset.dart';
 export 'validation/habit_validation.dart';
