@@ -26,7 +26,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Habit> _habits = <Habit>[];
   Set<String> _completedTodayHabitIds = <String>{};
   Map<String, String> _streakLabelsByHabitId = <String, String>{};
+  Map<String, List<HabitEvent>> _eventsByHabitId = <String, List<HabitEvent>>{};
   Set<String> _trackingHabitIds = <String>{};
+  late DateTime _visibleMonth;
   bool _isLoading = true;
   String? _errorMessage;
   int _eventIdCounter = 0;
@@ -34,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _visibleMonth = toMonthStart(widget.clock());
     _loadHabits();
   }
 
@@ -56,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _habits = habits;
         _completedTodayHabitIds = trackingLoadResult.completedTodayHabitIds;
         _streakLabelsByHabitId = trackingLoadResult.streakLabelsByHabitId;
+        _eventsByHabitId = trackingLoadResult.eventsByHabitId;
         _isLoading = false;
       });
     } on Object catch (error, stackTrace) {
@@ -90,17 +94,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final Set<String> completedTodayHabitIds = <String>{};
     final Map<String, String> streakLabelsByHabitId = <String, String>{};
+    final Map<String, List<HabitEvent>> eventsByHabitId =
+        <String, List<HabitEvent>>{};
     for (final MapEntry<String, _HabitTrackingSnapshot> entry in snapshots) {
       final _HabitTrackingSnapshot snapshot = entry.value;
       if (snapshot.isCompletedToday) {
         completedTodayHabitIds.add(entry.key);
       }
       streakLabelsByHabitId[entry.key] = snapshot.streakLabel;
+      eventsByHabitId[entry.key] = snapshot.events;
     }
 
     return _TrackingLoadResult(
       completedTodayHabitIds: completedTodayHabitIds,
       streakLabelsByHabitId: streakLabelsByHabitId,
+      eventsByHabitId: eventsByHabitId,
     );
   }
 
@@ -127,6 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
         isCompletedToday: isCompletedToday,
         streakLabel:
             'Streak: ${_formatDayCount(currentStreak)} (Best: ${_formatDayCount(bestStreak)})',
+        events: events,
       );
     }
 
@@ -140,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
         isCompletedToday: false,
         streakLabel:
             'Streak: ${formatElapsedDurationShort(currentStreak)} since relapse',
+        events: events,
       );
     }
 
@@ -150,6 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return _HabitTrackingSnapshot(
       isCompletedToday: false,
       streakLabel: 'Started ${formatElapsedDurationShort(startedSince)} ago',
+      events: events,
     );
   }
 
@@ -176,6 +187,28 @@ class _HomeScreenState extends State<HomeScreen> {
         ..._streakLabelsByHabitId,
         habit.id: snapshot.streakLabel,
       };
+      _eventsByHabitId = <String, List<HabitEvent>>{
+        ..._eventsByHabitId,
+        habit.id: snapshot.events,
+      };
+    });
+  }
+
+  void _showPreviousMonth() {
+    setState(() {
+      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month - 1);
+    });
+  }
+
+  void _showNextMonth() {
+    setState(() {
+      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + 1);
+    });
+  }
+
+  void _jumpToCurrentMonth() {
+    setState(() {
+      _visibleMonth = toMonthStart(widget.clock());
     });
   }
 
@@ -516,32 +549,65 @@ class _HomeScreenState extends State<HomeScreen> {
       return _EmptyState(onCreate: _createHabit);
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.xl * 3,
-      ),
-      itemCount: _habits.length,
-      separatorBuilder: (final BuildContext context, final int index) {
-        return const SizedBox(height: AppSpacing.md);
-      },
-      itemBuilder: (final BuildContext context, final int index) {
-        final Habit habit = _habits[index];
-        return _HabitCard(
-          key: ValueKey<String>('habit_card_${habit.id}'),
-          habit: habit,
-          streakSummary:
-              _streakLabelsByHabitId[habit.id] ?? _fallbackStreakSummary(habit),
-          isCompletedToday: _completedTodayHabitIds.contains(habit.id),
-          isTrackingActionInProgress: _trackingHabitIds.contains(habit.id),
-          onQuickAction: () => _onQuickActionTap(habit),
-          onEdit: () => _editHabit(habit),
-          onBackdateRelapse: () => _promptBackdatedRelapse(habit),
-          onArchive: () => _archiveHabit(habit),
-        );
-      },
+    final DateTime nowLocal = widget.clock();
+    final DateTime currentMonth = toMonthStart(nowLocal);
+    final bool isViewingCurrentMonth =
+        _visibleMonth.year == currentMonth.year &&
+        _visibleMonth.month == currentMonth.month;
+    final String todayLocalDayKey = toLocalDayKey(nowLocal);
+
+    return Column(
+      children: <Widget>[
+        _MonthNavigationBar(
+          visibleMonth: _visibleMonth,
+          isViewingCurrentMonth: isViewingCurrentMonth,
+          onPreviousMonth: _showPreviousMonth,
+          onNextMonth: _showNextMonth,
+          onJumpToCurrentMonth: _jumpToCurrentMonth,
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: _GridLegend(),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.xl * 3,
+            ),
+            itemCount: _habits.length,
+            separatorBuilder: (final BuildContext context, final int index) {
+              return const SizedBox(height: AppSpacing.md);
+            },
+            itemBuilder: (final BuildContext context, final int index) {
+              final Habit habit = _habits[index];
+              return _HabitCard(
+                key: ValueKey<String>('habit_card_${habit.id}'),
+                habit: habit,
+                streakSummary:
+                    _streakLabelsByHabitId[habit.id] ??
+                    _fallbackStreakSummary(habit),
+                isCompletedToday: _completedTodayHabitIds.contains(habit.id),
+                isTrackingActionInProgress: _trackingHabitIds.contains(
+                  habit.id,
+                ),
+                monthlyCells: buildHabitMonthCells(
+                  mode: habit.mode,
+                  events: _eventsByHabitId[habit.id] ?? const <HabitEvent>[],
+                  monthLocal: _visibleMonth,
+                  referenceTodayLocalDayKey: todayLocalDayKey,
+                ),
+                onQuickAction: () => _onQuickActionTap(habit),
+                onEdit: () => _editHabit(habit),
+                onBackdateRelapse: () => _promptBackdatedRelapse(habit),
+                onArchive: () => _archiveHabit(habit),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -556,20 +622,174 @@ class _TrackingLoadResult {
   const _TrackingLoadResult({
     required this.completedTodayHabitIds,
     required this.streakLabelsByHabitId,
+    required this.eventsByHabitId,
   });
 
   final Set<String> completedTodayHabitIds;
   final Map<String, String> streakLabelsByHabitId;
+  final Map<String, List<HabitEvent>> eventsByHabitId;
 }
 
 class _HabitTrackingSnapshot {
   const _HabitTrackingSnapshot({
     required this.isCompletedToday,
     required this.streakLabel,
+    required this.events,
   });
 
   final bool isCompletedToday;
   final String streakLabel;
+  final List<HabitEvent> events;
+}
+
+class _MonthNavigationBar extends StatelessWidget {
+  const _MonthNavigationBar({
+    required this.visibleMonth,
+    required this.isViewingCurrentMonth,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+    required this.onJumpToCurrentMonth,
+  });
+
+  final DateTime visibleMonth;
+  final bool isViewingCurrentMonth;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback onNextMonth;
+  final VoidCallback onJumpToCurrentMonth;
+
+  @override
+  Widget build(final BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.sm,
+        0,
+      ),
+      child: Row(
+        children: <Widget>[
+          IconButton(
+            key: const Key('home_month_prev_button'),
+            onPressed: onPreviousMonth,
+            tooltip: 'Previous month',
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          Expanded(
+            child: Text(
+              formatMonthLabel(visibleMonth),
+              key: const Key('home_month_label'),
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          IconButton(
+            key: const Key('home_month_next_button'),
+            onPressed: onNextMonth,
+            tooltip: 'Next month',
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+          if (isViewingCurrentMonth)
+            const Padding(
+              padding: EdgeInsets.only(left: AppSpacing.xs),
+              child: Chip(
+                key: Key('home_month_current_chip'),
+                label: Text('Current'),
+              ),
+            )
+          else
+            TextButton(
+              key: const Key('home_month_jump_current_button'),
+              onPressed: onJumpToCurrentMonth,
+              child: const Text('Go to current'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GridLegend extends StatelessWidget {
+  const _GridLegend();
+
+  @override
+  Widget build(final BuildContext context) {
+    return Container(
+      key: const Key('home_grid_legend'),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Legend', style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: AppSpacing.xs),
+          const Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: <Widget>[
+              _LegendItem(
+                tooltip: 'Positive: completed for that day',
+                color: Color(0xFF2E7D32),
+                label: 'Done',
+              ),
+              _LegendItem(
+                tooltip: 'Positive: no completion logged for that day',
+                color: Color(0xFFF2B8B5),
+                label: 'Missed',
+              ),
+              _LegendItem(
+                tooltip: 'Future day for both habit modes',
+                color: Color(0xFFE8EAE6),
+                label: 'Future',
+              ),
+              _LegendItem(
+                tooltip: 'Negative: relapse logged on that day',
+                color: Color(0xFFC62828),
+                label: 'Relapse',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  const _LegendItem({
+    required this.tooltip,
+    required this.color,
+    required this.label,
+  });
+
+  final String tooltip;
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(final BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
 }
 
 class _EmptyState extends StatelessWidget {
@@ -660,6 +880,7 @@ class _HabitCard extends StatelessWidget {
     required this.streakSummary,
     required this.isCompletedToday,
     required this.isTrackingActionInProgress,
+    required this.monthlyCells,
     required this.onQuickAction,
     required this.onEdit,
     required this.onBackdateRelapse,
@@ -670,6 +891,7 @@ class _HabitCard extends StatelessWidget {
   final String streakSummary;
   final bool isCompletedToday;
   final bool isTrackingActionInProgress;
+  final List<HabitMonthCell> monthlyCells;
   final Future<void> Function() onQuickAction;
   final Future<void> Function() onEdit;
   final Future<void> Function() onBackdateRelapse;
@@ -683,12 +905,9 @@ class _HabitCard extends StatelessWidget {
     final String modeLabel = habit.mode == HabitMode.positive
         ? 'Positive habit'
         : 'Negative habit';
-    final String trackingLabel = habit.mode == HabitMode.positive
+    final String currentSummary = habit.mode == HabitMode.positive
         ? '$streakSummary • ${isCompletedToday ? 'Done today' : 'Not done today'}'
         : streakSummary;
-    final String subtitle = (habit.note == null || habit.note!.isEmpty)
-        ? '$modeLabel • $trackingLabel'
-        : '$modeLabel • $trackingLabel • ${habit.note}';
 
     final IconData quickActionIcon = switch (habit.mode) {
       HabitMode.positive =>
@@ -703,88 +922,351 @@ class _HabitCard extends StatelessWidget {
     return Card(
       color: cardColor,
       margin: EdgeInsets.zero,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        leading: CircleAvatar(
-          backgroundColor: textColor.withValues(alpha: 0.2),
-          child: Icon(_iconForKey(habit.iconKey), color: textColor),
-        ),
-        title: Text(
-          habit.name,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(color: textColor),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: textColor.withValues(alpha: 0.9),
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            IconButton(
-              key: ValueKey<String>('habit_card_quick_action_${habit.id}'),
-              onPressed: isTrackingActionInProgress ? null : onQuickAction,
-              icon: isTrackingActionInProgress
-                  ? SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(textColor),
-                      ),
-                    )
-                  : Icon(quickActionIcon),
-              tooltip: quickActionTooltip,
-              color: textColor,
+      child: Column(
+        children: <Widget>[
+          ListTile(
+            contentPadding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.xs,
+              AppSpacing.sm,
+              AppSpacing.xs,
             ),
-            PopupMenuButton<_HabitCardMenuAction>(
-              key: ValueKey<String>('habit_card_menu_${habit.id}'),
-              iconColor: textColor,
-              onSelected: (final _HabitCardMenuAction value) {
-                switch (value) {
-                  case _HabitCardMenuAction.edit:
-                    onEdit();
-                  case _HabitCardMenuAction.backdateRelapse:
-                    onBackdateRelapse();
-                  case _HabitCardMenuAction.archive:
-                    onArchive();
-                }
-              },
-              itemBuilder: (final BuildContext context) {
-                return <PopupMenuEntry<_HabitCardMenuAction>>[
-                  PopupMenuItem<_HabitCardMenuAction>(
-                    key: ValueKey<String>('habit_card_edit_${habit.id}'),
-                    value: _HabitCardMenuAction.edit,
-                    child: const Text('Edit Habit'),
+            leading: CircleAvatar(
+              backgroundColor: textColor.withValues(alpha: 0.2),
+              child: Icon(_iconForKey(habit.iconKey), color: textColor),
+            ),
+            title: Text(
+              habit.name,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: textColor),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  modeLabel,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: textColor.withValues(alpha: 0.92),
                   ),
-                  if (habit.mode == HabitMode.negative)
-                    PopupMenuItem<_HabitCardMenuAction>(
-                      key: ValueKey<String>(
-                        'habit_card_backdate_relapse_${habit.id}',
-                      ),
-                      value: _HabitCardMenuAction.backdateRelapse,
-                      child: const Text('Backdate Relapse'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  currentSummary,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: textColor.withValues(alpha: 0.92),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (habit.note != null && habit.note!.isNotEmpty)
+                  Text(
+                    habit.note!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: textColor.withValues(alpha: 0.85),
                     ),
-                  PopupMenuItem<_HabitCardMenuAction>(
-                    key: ValueKey<String>('habit_card_archive_${habit.id}'),
-                    value: _HabitCardMenuAction.archive,
-                    child: const Text('Archive Habit'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ];
-              },
+              ],
             ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                IconButton(
+                  key: ValueKey<String>('habit_card_quick_action_${habit.id}'),
+                  onPressed: isTrackingActionInProgress ? null : onQuickAction,
+                  icon: isTrackingActionInProgress
+                      ? SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              textColor,
+                            ),
+                          ),
+                        )
+                      : Icon(quickActionIcon),
+                  tooltip: quickActionTooltip,
+                  color: textColor,
+                ),
+                PopupMenuButton<_HabitCardMenuAction>(
+                  key: ValueKey<String>('habit_card_menu_${habit.id}'),
+                  iconColor: textColor,
+                  onSelected: (final _HabitCardMenuAction value) {
+                    switch (value) {
+                      case _HabitCardMenuAction.edit:
+                        onEdit();
+                      case _HabitCardMenuAction.backdateRelapse:
+                        onBackdateRelapse();
+                      case _HabitCardMenuAction.archive:
+                        onArchive();
+                    }
+                  },
+                  itemBuilder: (final BuildContext context) {
+                    return <PopupMenuEntry<_HabitCardMenuAction>>[
+                      PopupMenuItem<_HabitCardMenuAction>(
+                        key: ValueKey<String>('habit_card_edit_${habit.id}'),
+                        value: _HabitCardMenuAction.edit,
+                        child: const Text('Edit Habit'),
+                      ),
+                      if (habit.mode == HabitMode.negative)
+                        PopupMenuItem<_HabitCardMenuAction>(
+                          key: ValueKey<String>(
+                            'habit_card_backdate_relapse_${habit.id}',
+                          ),
+                          value: _HabitCardMenuAction.backdateRelapse,
+                          child: const Text('Backdate Relapse'),
+                        ),
+                      PopupMenuItem<_HabitCardMenuAction>(
+                        key: ValueKey<String>('habit_card_archive_${habit.id}'),
+                        value: _HabitCardMenuAction.archive,
+                        child: const Text('Archive Habit'),
+                      ),
+                    ];
+                  },
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
+              AppSpacing.md,
+            ),
+            child: _HabitMonthGrid(
+              habitId: habit.id,
+              cells: monthlyCells,
+              mode: habit.mode,
+              textColor: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitMonthGrid extends StatelessWidget {
+  const _HabitMonthGrid({
+    required this.habitId,
+    required this.cells,
+    required this.mode,
+    required this.textColor,
+  });
+
+  final String habitId;
+  final List<HabitMonthCell> cells;
+  final HabitMode mode;
+  final Color textColor;
+
+  @override
+  Widget build(final BuildContext context) {
+    return LayoutBuilder(
+      builder: (final BuildContext context, final BoxConstraints constraints) {
+        const double spacing = AppSpacing.xxs;
+        final double availableWidth = constraints.maxWidth - (spacing * 6);
+        final double unclampedCellSize = availableWidth / 7;
+        final double cellSize = unclampedCellSize.clamp(14.0, 26.0).toDouble();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              mode == HabitMode.positive
+                  ? 'Monthly consistency'
+                  : 'Monthly relapse markers',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: textColor.withValues(alpha: 0.95),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: _weekdayLabels
+                  .map((final String label) {
+                    return Expanded(
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: textColor.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    );
+                  })
+                  .toList(growable: false),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: cells
+                  .map((final HabitMonthCell cell) {
+                    return _HabitMonthCell(
+                      habitId: habitId,
+                      cell: cell,
+                      cellSize: cellSize,
+                    );
+                  })
+                  .toList(growable: false),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _HabitMonthCell extends StatelessWidget {
+  const _HabitMonthCell({
+    required this.habitId,
+    required this.cell,
+    required this.cellSize,
+  });
+
+  final String habitId;
+  final HabitMonthCell cell;
+  final double cellSize;
+
+  @override
+  Widget build(final BuildContext context) {
+    final _MonthCellVisual visual = _visualForCell(context, cell);
+    final bool showDayNumber = cell.isInMonth && cellSize >= 19;
+    return Tooltip(
+      message: '${cell.localDayKey}: ${visual.tooltipLabel}',
+      child: Container(
+        key: ValueKey<String>(
+          'habit_grid_cell_${habitId}_${cell.localDayKey}_${cell.state.name}',
+        ),
+        width: cellSize,
+        height: cellSize,
+        decoration: BoxDecoration(
+          color: visual.backgroundColor.withValues(
+            alpha: cell.isInMonth ? visual.alpha : visual.alpha * 0.45,
+          ),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          border: Border.all(
+            color: visual.borderColor.withValues(
+              alpha: cell.isInMonth ? 1 : 0.45,
+            ),
+            width: visual.borderWidth,
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: <Widget>[
+            if (showDayNumber)
+              Text(
+                '${cell.dateLocal.day}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontSize: cellSize < 22 ? 9 : 10,
+                  color: visual.textColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            if (visual.showRelapseDot)
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: visual.dotColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
           ],
         ),
       ),
     );
   }
+}
+
+_MonthCellVisual _visualForCell(
+  final BuildContext context,
+  final HabitMonthCell cell,
+) {
+  final ColorScheme colorScheme = Theme.of(context).colorScheme;
+  final HabitSemanticColors semanticColors = context.semanticColors;
+  return switch (cell.state) {
+    HabitMonthCellState.positiveDone => _MonthCellVisual(
+      backgroundColor: semanticColors.positive,
+      borderColor: semanticColors.positive.withValues(alpha: 0.9),
+      textColor: Colors.white,
+      alpha: 0.9,
+      borderWidth: 1,
+      tooltipLabel: 'Done',
+    ),
+    HabitMonthCellState.positiveMissed => _MonthCellVisual(
+      backgroundColor: semanticColors.negative.withValues(alpha: 0.2),
+      borderColor: semanticColors.negative.withValues(alpha: 0.65),
+      textColor: colorScheme.onSurface,
+      alpha: 0.9,
+      borderWidth: 1,
+      tooltipLabel: 'Missed',
+    ),
+    HabitMonthCellState.positiveFuture => _MonthCellVisual(
+      backgroundColor: colorScheme.surfaceContainerHighest,
+      borderColor: colorScheme.outlineVariant,
+      textColor: colorScheme.onSurfaceVariant,
+      alpha: 0.35,
+      borderWidth: 1,
+      tooltipLabel: 'Future',
+    ),
+    HabitMonthCellState.negativeRelapse => _MonthCellVisual(
+      backgroundColor: colorScheme.surface,
+      borderColor: semanticColors.negative,
+      textColor: colorScheme.onSurface,
+      alpha: 0.85,
+      borderWidth: 1.2,
+      tooltipLabel: 'Relapse',
+      showRelapseDot: true,
+      dotColor: semanticColors.negative,
+    ),
+    HabitMonthCellState.negativeClear => _MonthCellVisual(
+      backgroundColor: semanticColors.positive.withValues(alpha: 0.2),
+      borderColor: semanticColors.positive.withValues(alpha: 0.45),
+      textColor: colorScheme.onSurface,
+      alpha: 0.8,
+      borderWidth: 1,
+      tooltipLabel: 'No relapse',
+    ),
+    HabitMonthCellState.negativeFuture => _MonthCellVisual(
+      backgroundColor: colorScheme.surfaceContainerHighest,
+      borderColor: colorScheme.outlineVariant,
+      textColor: colorScheme.onSurfaceVariant,
+      alpha: 0.35,
+      borderWidth: 1,
+      tooltipLabel: 'Future',
+    ),
+  };
+}
+
+class _MonthCellVisual {
+  const _MonthCellVisual({
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.textColor,
+    required this.alpha,
+    required this.borderWidth,
+    required this.tooltipLabel,
+    this.showRelapseDot = false,
+    this.dotColor = Colors.transparent,
+  });
+
+  final Color backgroundColor;
+  final Color borderColor;
+  final Color textColor;
+  final double alpha;
+  final double borderWidth;
+  final String tooltipLabel;
+  final bool showRelapseDot;
+  final Color dotColor;
 }
 
 enum _HabitCardMenuAction { edit, backdateRelapse, archive }
@@ -1246,6 +1728,8 @@ const List<String> _habitColorHexOptions = <String>[
   '#1565C0',
   '#5D4037',
 ];
+
+const List<String> _weekdayLabels = <String>['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 final Map<String, IconData> _habitIconByKey = <String, IconData>{
   for (final _HabitIconOption option in _habitIconOptions)

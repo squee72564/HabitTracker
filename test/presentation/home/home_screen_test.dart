@@ -358,6 +358,233 @@ void main() {
       );
     });
   });
+
+  group('HomeScreen Stage 6 dashboard + grid flows', () {
+    testWidgets('positive grid maps done, missed, and future cells', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository(
+            seedEvents: <HabitEvent>[
+              HabitEvent(
+                id: 'event-1',
+                habitId: 'habit-1',
+                eventType: HabitEventType.complete,
+                occurredAtUtc: DateTime.utc(2026, 2, 10, 12),
+                localDayKey: '2026-02-10',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+              HabitEvent(
+                id: 'event-2',
+                habitId: 'habit-1',
+                eventType: HabitEventType.complete,
+                occurredAtUtc: DateTime.utc(2026, 2, 15, 12),
+                localDayKey: '2026-02-15',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+            ],
+          );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => DateTime(2026, 2, 15, 9),
+      );
+
+      expect(find.byKey(const Key('home_grid_legend')), findsOneWidget);
+      expect(find.text('February 2026'), findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-10_positiveDone',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-14_positiveMissed',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-20_positiveFuture',
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('negative grid marks relapse days and future days', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'No Soda',
+            iconKey: 'water',
+            colorHex: '#8A2D3B',
+            mode: HabitMode.negative,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository(
+            seedEvents: <HabitEvent>[
+              HabitEvent(
+                id: 'event-1',
+                habitId: 'habit-1',
+                eventType: HabitEventType.relapse,
+                occurredAtUtc: DateTime.utc(2026, 2, 12, 12),
+                localDayKey: '2026-02-12',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+            ],
+          );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => DateTime(2026, 2, 15, 9),
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-12_negativeRelapse',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-11_negativeClear',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-20_negativeFuture',
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('month navigation updates label and current-month controls', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository();
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => DateTime(2026, 2, 15, 9),
+      );
+
+      expect(find.text('February 2026'), findsOneWidget);
+      expect(find.byKey(const Key('home_month_current_chip')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('home_month_prev_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('January 2026'), findsOneWidget);
+      expect(find.byKey(const Key('home_month_current_chip')), findsNothing);
+      expect(
+        find.byKey(const Key('home_month_jump_current_button')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('home_month_jump_current_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('February 2026'), findsOneWidget);
+      expect(find.byKey(const Key('home_month_current_chip')), findsOneWidget);
+    });
+
+    testWidgets('small screens render cards and grids without overflow', (
+      final WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name:
+                'Very Long Habit Name That Should Truncate Cleanly On Small Screens',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            note:
+                'Long note text that also needs truncation in compact layouts.',
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository();
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => DateTime(2026, 2, 15, 9),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-15_positiveMissed',
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+  });
 }
 
 Future<void> _pumpHomeScreen({
@@ -439,6 +666,14 @@ class _FakeHabitRepository implements HabitRepository {
 }
 
 class _FakeHabitEventRepository implements HabitEventRepository {
+  _FakeHabitEventRepository({
+    final Iterable<HabitEvent> seedEvents = const <HabitEvent>[],
+  }) {
+    for (final HabitEvent event in seedEvents) {
+      _eventsById[event.id] = event;
+    }
+  }
+
   final Map<String, HabitEvent> _eventsById = <String, HabitEvent>{};
 
   @override
