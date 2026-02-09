@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Habit> _habits = <Habit>[];
   Set<String> _completedTodayHabitIds = <String>{};
+  Map<String, String> _streakLabelsByHabitId = <String, String>{};
   Set<String> _trackingHabitIds = <String>{};
   bool _isLoading = true;
   String? _errorMessage;
@@ -45,15 +46,16 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final List<Habit> habits = await widget.habitRepository
           .listActiveHabits();
-      final Set<String> completedTodayHabitIds = await _loadTodayCompletions(
-        habits,
-      );
+      final DateTime nowLocal = widget.clock();
+      final _TrackingLoadResult trackingLoadResult =
+          await _loadTrackingForHabits(habits: habits, nowLocal: nowLocal);
       if (!mounted) {
         return;
       }
       setState(() {
         _habits = habits;
-        _completedTodayHabitIds = completedTodayHabitIds;
+        _completedTodayHabitIds = trackingLoadResult.completedTodayHabitIds;
+        _streakLabelsByHabitId = trackingLoadResult.streakLabelsByHabitId;
         _isLoading = false;
       });
     } on Object catch (error, stackTrace) {
@@ -73,27 +75,108 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<Set<String>> _loadTodayCompletions(final List<Habit> habits) async {
-    final String todayLocalDayKey = toLocalDayKey(widget.clock());
-    final Iterable<Habit> positiveHabits = habits.where(
-      (final Habit habit) => habit.mode == HabitMode.positive,
-    );
-
-    final List<String?> completedHabitIds = await Future.wait<String?>(
-      positiveHabits.map((final Habit habit) async {
-        final List<HabitEvent> todayEvents = await widget.habitEventRepository
-            .listEventsForHabitOnDay(
-              habitId: habit.id,
-              localDayKey: todayLocalDayKey,
-            );
-        final bool hasCompletion = todayEvents.any(
-          (final HabitEvent event) =>
-              event.eventType == HabitEventType.complete,
+  Future<_TrackingLoadResult> _loadTrackingForHabits({
+    required final List<Habit> habits,
+    required final DateTime nowLocal,
+  }) async {
+    final List<MapEntry<String, _HabitTrackingSnapshot>> snapshots =
+        await Future.wait<MapEntry<String, _HabitTrackingSnapshot>>(
+          habits.map((final Habit habit) async {
+            final _HabitTrackingSnapshot snapshot =
+                await _buildTrackingSnapshot(habit: habit, nowLocal: nowLocal);
+            return MapEntry<String, _HabitTrackingSnapshot>(habit.id, snapshot);
+          }),
         );
-        return hasCompletion ? habit.id : null;
-      }),
+
+    final Set<String> completedTodayHabitIds = <String>{};
+    final Map<String, String> streakLabelsByHabitId = <String, String>{};
+    for (final MapEntry<String, _HabitTrackingSnapshot> entry in snapshots) {
+      final _HabitTrackingSnapshot snapshot = entry.value;
+      if (snapshot.isCompletedToday) {
+        completedTodayHabitIds.add(entry.key);
+      }
+      streakLabelsByHabitId[entry.key] = snapshot.streakLabel;
+    }
+
+    return _TrackingLoadResult(
+      completedTodayHabitIds: completedTodayHabitIds,
+      streakLabelsByHabitId: streakLabelsByHabitId,
     );
-    return completedHabitIds.whereType<String>().toSet();
+  }
+
+  Future<_HabitTrackingSnapshot> _buildTrackingSnapshot({
+    required final Habit habit,
+    required final DateTime nowLocal,
+  }) async {
+    final List<HabitEvent> events = await widget.habitEventRepository
+        .listEventsForHabit(habit.id);
+
+    if (habit.mode == HabitMode.positive) {
+      final String todayLocalDayKey = toLocalDayKey(nowLocal);
+      final bool isCompletedToday = events.any(
+        (final HabitEvent event) =>
+            event.eventType == HabitEventType.complete &&
+            event.localDayKey == todayLocalDayKey,
+      );
+      final int currentStreak = calculatePositiveCurrentStreak(
+        events: events,
+        referenceLocalDayKey: todayLocalDayKey,
+      );
+      final int bestStreak = calculatePositiveBestStreak(events: events);
+      return _HabitTrackingSnapshot(
+        isCompletedToday: isCompletedToday,
+        streakLabel:
+            'Streak: ${_formatDayCount(currentStreak)} (Best: ${_formatDayCount(bestStreak)})',
+      );
+    }
+
+    final DateTime nowUtc = nowLocal.toUtc();
+    final Duration? currentStreak = calculateNegativeCurrentStreak(
+      events: events,
+      nowUtc: nowUtc,
+    );
+    if (currentStreak != null) {
+      return _HabitTrackingSnapshot(
+        isCompletedToday: false,
+        streakLabel:
+            'Streak: ${formatElapsedDurationShort(currentStreak)} since relapse',
+      );
+    }
+
+    final Duration startedSince = calculateDurationSinceUtc(
+      startedAtUtc: habit.createdAtUtc,
+      nowUtc: nowUtc,
+    );
+    return _HabitTrackingSnapshot(
+      isCompletedToday: false,
+      streakLabel: 'Started ${formatElapsedDurationShort(startedSince)} ago',
+    );
+  }
+
+  Future<void> _refreshTrackingForHabit(final Habit habit) async {
+    final _HabitTrackingSnapshot snapshot = await _buildTrackingSnapshot(
+      habit: habit,
+      nowLocal: widget.clock(),
+    );
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      final Set<String> updatedCompletedTodayHabitIds = <String>{
+        ..._completedTodayHabitIds,
+      };
+      if (snapshot.isCompletedToday) {
+        updatedCompletedTodayHabitIds.add(habit.id);
+      } else {
+        updatedCompletedTodayHabitIds.remove(habit.id);
+      }
+      _completedTodayHabitIds = updatedCompletedTodayHabitIds;
+      _streakLabelsByHabitId = <String, String>{
+        ..._streakLabelsByHabitId,
+        habit.id: snapshot.streakLabel,
+      };
+    });
   }
 
   Future<void> _createHabit() async {
@@ -282,16 +365,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (completionEvents.isNotEmpty) {
       final HabitEvent eventToDelete = completionEvents.last;
       await widget.habitEventRepository.deleteEventById(eventToDelete.id);
+      await _refreshTrackingForHabit(habit);
       if (!mounted) {
         return;
       }
-      setState(() {
-        final Set<String> updatedCompletedIds = <String>{
-          ..._completedTodayHabitIds,
-        };
-        updatedCompletedIds.remove(habit.id);
-        _completedTodayHabitIds = updatedCompletedIds;
-      });
       _showSnackBar('Today marked as not done.');
       return;
     }
@@ -308,25 +385,18 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await widget.habitEventRepository.saveEvent(completion);
     } on DuplicateHabitCompletionException {
+      await _refreshTrackingForHabit(habit);
       if (!mounted) {
         return;
       }
-      setState(() {
-        _completedTodayHabitIds = <String>{
-          ..._completedTodayHabitIds,
-          habit.id,
-        };
-      });
       _showSnackBar('Already marked done for today.');
       return;
     }
 
+    await _refreshTrackingForHabit(habit);
     if (!mounted) {
       return;
     }
-    setState(() {
-      _completedTodayHabitIds = <String>{..._completedTodayHabitIds, habit.id};
-    });
     _showSnackBar('Marked done for today.');
   }
 
@@ -401,6 +471,7 @@ class _HomeScreenState extends State<HomeScreen> {
       tzOffsetMinutesAtEvent: captureTzOffsetMinutesAtEvent(localDateTime),
     );
     await widget.habitEventRepository.saveEvent(event);
+    await _refreshTrackingForHabit(habit);
     if (!mounted) {
       return;
     }
@@ -461,6 +532,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return _HabitCard(
           key: ValueKey<String>('habit_card_${habit.id}'),
           habit: habit,
+          streakSummary:
+              _streakLabelsByHabitId[habit.id] ?? _fallbackStreakSummary(habit),
           isCompletedToday: _completedTodayHabitIds.contains(habit.id),
           isTrackingActionInProgress: _trackingHabitIds.contains(habit.id),
           onQuickAction: () => _onQuickActionTap(habit),
@@ -471,6 +544,32 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+
+  String _fallbackStreakSummary(final Habit habit) {
+    return habit.mode == HabitMode.positive
+        ? 'Streak: 0 days (Best: 0 days)'
+        : 'Started 0m ago';
+  }
+}
+
+class _TrackingLoadResult {
+  const _TrackingLoadResult({
+    required this.completedTodayHabitIds,
+    required this.streakLabelsByHabitId,
+  });
+
+  final Set<String> completedTodayHabitIds;
+  final Map<String, String> streakLabelsByHabitId;
+}
+
+class _HabitTrackingSnapshot {
+  const _HabitTrackingSnapshot({
+    required this.isCompletedToday,
+    required this.streakLabel,
+  });
+
+  final bool isCompletedToday;
+  final String streakLabel;
 }
 
 class _EmptyState extends StatelessWidget {
@@ -558,6 +657,7 @@ class _HabitCard extends StatelessWidget {
   const _HabitCard({
     super.key,
     required this.habit,
+    required this.streakSummary,
     required this.isCompletedToday,
     required this.isTrackingActionInProgress,
     required this.onQuickAction,
@@ -567,6 +667,7 @@ class _HabitCard extends StatelessWidget {
   });
 
   final Habit habit;
+  final String streakSummary;
   final bool isCompletedToday;
   final bool isTrackingActionInProgress;
   final Future<void> Function() onQuickAction;
@@ -583,8 +684,8 @@ class _HabitCard extends StatelessWidget {
         ? 'Positive habit'
         : 'Negative habit';
     final String trackingLabel = habit.mode == HabitMode.positive
-        ? (isCompletedToday ? 'Done today' : 'Not done today')
-        : 'Quick action: relapse now';
+        ? '$streakSummary • ${isCompletedToday ? 'Done today' : 'Not done today'}'
+        : streakSummary;
     final String subtitle = (habit.note == null || habit.note!.isEmpty)
         ? '$modeLabel • $trackingLabel'
         : '$modeLabel • $trackingLabel • ${habit.note}';
@@ -1153,6 +1254,13 @@ final Map<String, IconData> _habitIconByKey = <String, IconData>{
 
 IconData _iconForKey(final String iconKey) {
   return _habitIconByKey[iconKey] ?? Icons.track_changes_rounded;
+}
+
+String _formatDayCount(final int dayCount) {
+  if (dayCount == 1) {
+    return '1 day';
+  }
+  return '$dayCount days';
 }
 
 String _generateHabitId() {

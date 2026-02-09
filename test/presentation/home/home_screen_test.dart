@@ -5,7 +5,7 @@ import 'package:habit_tracker/domain/domain.dart';
 import 'package:habit_tracker/presentation/home/home_screen.dart';
 
 void main() {
-  group('HomeScreen Stage 3 + Stage 4 flows', () {
+  group('HomeScreen Stage 3 + Stage 4 + Stage 5 flows', () {
     testWidgets('creates a habit from empty state', (
       final WidgetTester tester,
     ) async {
@@ -199,6 +199,10 @@ void main() {
       );
 
       expect(find.textContaining('Not done today'), findsOneWidget);
+      expect(
+        find.textContaining('Streak: 0 days (Best: 0 days)'),
+        findsOneWidget,
+      );
 
       await tester.tap(
         find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
@@ -206,6 +210,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Done today'), findsOneWidget);
+      expect(
+        find.textContaining('Streak: 1 day (Best: 1 day)'),
+        findsOneWidget,
+      );
       List<HabitEvent> events = await eventRepository.listEventsForHabit(
         'habit-1',
       );
@@ -223,6 +231,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Not done today'), findsOneWidget);
+      expect(
+        find.textContaining('Streak: 0 days (Best: 0 days)'),
+        findsOneWidget,
+      );
       events = await eventRepository.listEventsForHabit('habit-1');
       expect(events, isEmpty);
 
@@ -235,6 +247,36 @@ void main() {
       expect(events.length, 1);
       expect(events.single.eventType, HabitEventType.complete);
       expect(events.single.localDayKey, '2026-02-15');
+    });
+
+    testWidgets('negative habit without relapse shows Started X ago fallback', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'No Sugar',
+            iconKey: 'food',
+            colorHex: '#8A2D3B',
+            mode: HabitMode.negative,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository();
+      final DateTime nowLocal = DateTime(2026, 2, 15, 14, 45);
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => nowLocal,
+      );
+
+      expect(find.textContaining('Started '), findsOneWidget);
+      expect(find.textContaining('ago'), findsOneWidget);
     });
 
     testWidgets('negative quick action logs relapse now and allows backdate', (
@@ -263,10 +305,14 @@ void main() {
         clock: () => nowLocal,
       );
 
+      expect(find.textContaining('Started '), findsOneWidget);
+      expect(find.textContaining('ago'), findsOneWidget);
+
       await tester.tap(
         find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
       );
       await tester.pumpAndSettle();
+      expect(find.textContaining('since relapse'), findsOneWidget);
 
       await tester.tap(
         find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
