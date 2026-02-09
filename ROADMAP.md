@@ -33,15 +33,15 @@ This roadmap is derived from `MVP.md` and is designed to be completed in small, 
 
 ## Stage 2: Persistence Layer (Offline-First, Drift + SQLite)
 
-- [ ] R2.1 Define Drift tables for `habits` and `habit_events` backed by local SQLite.
-- [ ] R2.2 Add indexes for `habitId`, `occurredAtUtc`, `localDayKey`, and active habits query.
-- [ ] R2.3 Implement repository interfaces for habits and events.
-- [ ] R2.4 Implement repository adapters for CRUD and query operations.
-- [ ] R2.5 Implement soft archive (`archivedAtUtc`) behavior for habits.
-- [ ] R2.6 Implement transaction-safe writes for event creation + duplicate checks.
-- [ ] R2.7 Add migration strategy for schema versioning.
-- [ ] R2.8 Add repository tests for save/load/edit/archive flows.
-- [ ] R2.9 Stage 2 exit check: data persists across app restart and archive behavior is stable.
+- [x] R2.1 Define Drift tables for `habits` and `habit_events` backed by local SQLite.
+- [x] R2.2 Add indexes for `habitId`, `occurredAtUtc`, `localDayKey`, and active habits query.
+- [x] R2.3 Implement repository interfaces for habits and events.
+- [x] R2.4 Implement repository adapters for CRUD and query operations.
+- [x] R2.5 Implement soft archive (`archivedAtUtc`) behavior for habits.
+- [x] R2.6 Implement transaction-safe writes for event creation + duplicate checks.
+- [x] R2.7 Add migration strategy for schema versioning.
+- [x] R2.8 Add repository tests for save/load/edit/archive flows.
+- [x] R2.9 Stage 2 exit check: data persists across app restart and archive behavior is stable.
 
 ## Stage 3: Habit Creation and Editing UI
 
