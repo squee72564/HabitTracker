@@ -5,7 +5,10 @@ import 'package:habit_tracker/presentation/presentation.dart';
 void main() {
   testWidgets('renders home scaffold', (final WidgetTester tester) async {
     await tester.pumpWidget(
-      HabitTrackerApp(habitRepository: _EmptyHabitRepository()),
+      HabitTrackerApp(
+        habitRepository: _EmptyHabitRepository(),
+        habitEventRepository: _EmptyHabitEventRepository(),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -41,4 +44,30 @@ class _EmptyHabitRepository implements HabitRepository {
 
   @override
   Future<void> unarchiveHabit(final String habitId) async {}
+}
+
+class _EmptyHabitEventRepository implements HabitEventRepository {
+  @override
+  Future<void> deleteEventById(final String eventId) async {}
+
+  @override
+  Future<HabitEvent?> findEventById(final String eventId) async {
+    return null;
+  }
+
+  @override
+  Future<List<HabitEvent>> listEventsForHabit(final String habitId) async {
+    return <HabitEvent>[];
+  }
+
+  @override
+  Future<List<HabitEvent>> listEventsForHabitOnDay({
+    required final String habitId,
+    required final String localDayKey,
+  }) async {
+    return <HabitEvent>[];
+  }
+
+  @override
+  Future<void> saveEvent(final HabitEvent event) async {}
 }

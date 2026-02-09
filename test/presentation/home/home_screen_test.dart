@@ -5,13 +5,19 @@ import 'package:habit_tracker/domain/domain.dart';
 import 'package:habit_tracker/presentation/home/home_screen.dart';
 
 void main() {
-  group('HomeScreen Stage 3 flows', () {
+  group('HomeScreen Stage 3 + Stage 4 flows', () {
     testWidgets('creates a habit from empty state', (
       final WidgetTester tester,
     ) async {
       final _FakeHabitRepository repository = _FakeHabitRepository();
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository();
 
-      await _pumpHomeScreen(tester: tester, repository: repository);
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+      );
 
       expect(find.text('No habits yet'), findsOneWidget);
 
@@ -53,8 +59,14 @@ void main() {
           ),
         ],
       );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository();
 
-      await _pumpHomeScreen(tester: tester, repository: repository);
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+      );
 
       await tester.tap(find.byKey(const Key('home_add_habit_fab')));
       await tester.pumpAndSettle();
@@ -108,8 +120,14 @@ void main() {
           ),
         ],
       );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository();
 
-      await _pumpHomeScreen(tester: tester, repository: repository);
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+      );
 
       await tester.tap(
         find.byKey(const ValueKey<String>('habit_card_menu_habit-1')),
@@ -153,17 +171,163 @@ void main() {
       expect(archivedHabit, isNotNull);
       expect(archivedHabit?.archivedAtUtc, isNotNull);
     });
+
+    testWidgets('positive quick action toggles done, undo, and re-done today', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository();
+      final DateTime nowLocal = DateTime(2026, 2, 15, 9, 30);
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => nowLocal,
+      );
+
+      expect(find.textContaining('Not done today'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Done today'), findsOneWidget);
+      List<HabitEvent> events = await eventRepository.listEventsForHabit(
+        'habit-1',
+      );
+      expect(events.length, 1);
+      expect(events.single.eventType, HabitEventType.complete);
+      expect(events.single.localDayKey, '2026-02-15');
+      expect(
+        events.single.tzOffsetMinutesAtEvent,
+        nowLocal.timeZoneOffset.inMinutes,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Not done today'), findsOneWidget);
+      events = await eventRepository.listEventsForHabit('habit-1');
+      expect(events, isEmpty);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+      );
+      await tester.pumpAndSettle();
+
+      events = await eventRepository.listEventsForHabit('habit-1');
+      expect(events.length, 1);
+      expect(events.single.eventType, HabitEventType.complete);
+      expect(events.single.localDayKey, '2026-02-15');
+    });
+
+    testWidgets('negative quick action logs relapse now and allows backdate', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'No Soda',
+            iconKey: 'water',
+            colorHex: '#8A2D3B',
+            mode: HabitMode.negative,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository();
+      final DateTime nowLocal = DateTime(2026, 2, 15, 14, 45);
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => nowLocal,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_menu_habit-1')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Backdate Relapse'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('backdate_relapse_date_dropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('2026-02-12').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const Key('backdate_relapse_confirm_button')),
+      );
+      await tester.pumpAndSettle();
+
+      final List<HabitEvent> events = await eventRepository.listEventsForHabit(
+        'habit-1',
+      );
+      expect(events.length, 3);
+      expect(
+        events
+            .where((final HabitEvent e) => e.localDayKey == '2026-02-15')
+            .length,
+        2,
+      );
+      expect(
+        events.any((final HabitEvent e) => e.localDayKey == '2026-02-12'),
+        isTrue,
+      );
+      expect(
+        events.every(
+          (final HabitEvent event) => event.eventType == HabitEventType.relapse,
+        ),
+        isTrue,
+      );
+    });
   });
 }
 
 Future<void> _pumpHomeScreen({
   required final WidgetTester tester,
   required final HabitRepository repository,
+  required final HabitEventRepository eventRepository,
+  DateTime Function()? clock,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.light(),
-      home: HomeScreen(habitRepository: repository),
+      home: HomeScreen(
+        habitRepository: repository,
+        habitEventRepository: eventRepository,
+        clock: clock ?? DateTime.now,
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -225,5 +389,70 @@ class _FakeHabitRepository implements HabitRepository {
       return;
     }
     _habitsById[habitId] = habit.copyWith(clearArchivedAtUtc: true);
+  }
+}
+
+class _FakeHabitEventRepository implements HabitEventRepository {
+  final Map<String, HabitEvent> _eventsById = <String, HabitEvent>{};
+
+  @override
+  Future<void> saveEvent(final HabitEvent event) async {
+    if (event.eventType == HabitEventType.complete) {
+      final bool duplicateCompletionExists = _eventsById.values.any(
+        (final HabitEvent existingEvent) =>
+            existingEvent.habitId == event.habitId &&
+            existingEvent.localDayKey == event.localDayKey &&
+            existingEvent.eventType == HabitEventType.complete,
+      );
+      if (duplicateCompletionExists) {
+        throw DuplicateHabitCompletionException(
+          habitId: event.habitId,
+          localDayKey: event.localDayKey,
+        );
+      }
+    }
+    _eventsById[event.id] = event;
+  }
+
+  @override
+  Future<HabitEvent?> findEventById(final String eventId) async {
+    return _eventsById[eventId];
+  }
+
+  @override
+  Future<List<HabitEvent>> listEventsForHabit(final String habitId) async {
+    final List<HabitEvent> events =
+        _eventsById.values
+            .where((final HabitEvent event) => event.habitId == habitId)
+            .toList(growable: false)
+          ..sort(
+            (final HabitEvent a, final HabitEvent b) =>
+                a.occurredAtUtc.compareTo(b.occurredAtUtc),
+          );
+    return events;
+  }
+
+  @override
+  Future<List<HabitEvent>> listEventsForHabitOnDay({
+    required final String habitId,
+    required final String localDayKey,
+  }) async {
+    final List<HabitEvent> events =
+        _eventsById.values
+            .where(
+              (final HabitEvent event) =>
+                  event.habitId == habitId && event.localDayKey == localDayKey,
+            )
+            .toList(growable: false)
+          ..sort(
+            (final HabitEvent a, final HabitEvent b) =>
+                a.occurredAtUtc.compareTo(b.occurredAtUtc),
+          );
+    return events;
+  }
+
+  @override
+  Future<void> deleteEventById(final String eventId) async {
+    _eventsById.remove(eventId);
   }
 }

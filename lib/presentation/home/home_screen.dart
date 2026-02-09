@@ -5,9 +5,16 @@ import 'package:habit_tracker/core/core.dart';
 import 'package:habit_tracker/domain/domain.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.habitRepository});
+  const HomeScreen({
+    super.key,
+    required this.habitRepository,
+    required this.habitEventRepository,
+    this.clock = _systemNow,
+  });
 
   final HabitRepository habitRepository;
+  final HabitEventRepository habitEventRepository;
+  final DateTime Function() clock;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -17,8 +24,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final AppLogger _logger = AppLogger.instance;
 
   List<Habit> _habits = <Habit>[];
+  Set<String> _completedTodayHabitIds = <String>{};
+  Set<String> _trackingHabitIds = <String>{};
   bool _isLoading = true;
   String? _errorMessage;
+  int _eventIdCounter = 0;
 
   @override
   void initState() {
@@ -35,11 +45,15 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final List<Habit> habits = await widget.habitRepository
           .listActiveHabits();
+      final Set<String> completedTodayHabitIds = await _loadTodayCompletions(
+        habits,
+      );
       if (!mounted) {
         return;
       }
       setState(() {
         _habits = habits;
+        _completedTodayHabitIds = completedTodayHabitIds;
         _isLoading = false;
       });
     } on Object catch (error, stackTrace) {
@@ -57,6 +71,29 @@ class _HomeScreenState extends State<HomeScreen> {
         _errorMessage = 'Could not load habits. Please try again.';
       });
     }
+  }
+
+  Future<Set<String>> _loadTodayCompletions(final List<Habit> habits) async {
+    final String todayLocalDayKey = toLocalDayKey(widget.clock());
+    final Iterable<Habit> positiveHabits = habits.where(
+      (final Habit habit) => habit.mode == HabitMode.positive,
+    );
+
+    final List<String?> completedHabitIds = await Future.wait<String?>(
+      positiveHabits.map((final Habit habit) async {
+        final List<HabitEvent> todayEvents = await widget.habitEventRepository
+            .listEventsForHabitOnDay(
+              habitId: habit.id,
+              localDayKey: todayLocalDayKey,
+            );
+        final bool hasCompletion = todayEvents.any(
+          (final HabitEvent event) =>
+              event.eventType == HabitEventType.complete,
+        );
+        return hasCompletion ? habit.id : null;
+      }),
+    );
+    return completedHabitIds.whereType<String>().toSet();
   }
 
   Future<void> _createHabit() async {
@@ -187,6 +224,194 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _onQuickActionTap(final Habit habit) async {
+    if (_trackingHabitIds.contains(habit.id)) {
+      return;
+    }
+
+    setState(() {
+      _trackingHabitIds = <String>{..._trackingHabitIds, habit.id};
+    });
+
+    try {
+      if (habit.mode == HabitMode.positive) {
+        await _togglePositiveCompletionForToday(habit);
+      } else {
+        await _logRelapseAtLocalDateTime(
+          habit: habit,
+          localDateTime: widget.clock(),
+          feedbackMessage: 'Relapse logged.',
+        );
+      }
+    } on Object catch (error, stackTrace) {
+      _logger.error(
+        'Failed to track habit ${habit.id}.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('Could not update habit tracking.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          final Set<String> updatedBusyIds = <String>{..._trackingHabitIds};
+          updatedBusyIds.remove(habit.id);
+          _trackingHabitIds = updatedBusyIds;
+        });
+      }
+    }
+  }
+
+  Future<void> _togglePositiveCompletionForToday(final Habit habit) async {
+    final DateTime nowLocal = widget.clock();
+    final String todayLocalDayKey = toLocalDayKey(nowLocal);
+    final List<HabitEvent> eventsOnDay = await widget.habitEventRepository
+        .listEventsForHabitOnDay(
+          habitId: habit.id,
+          localDayKey: todayLocalDayKey,
+        );
+    final List<HabitEvent> completionEvents = eventsOnDay
+        .where(
+          (final HabitEvent event) =>
+              event.eventType == HabitEventType.complete,
+        )
+        .toList(growable: false);
+
+    if (completionEvents.isNotEmpty) {
+      final HabitEvent eventToDelete = completionEvents.last;
+      await widget.habitEventRepository.deleteEventById(eventToDelete.id);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        final Set<String> updatedCompletedIds = <String>{
+          ..._completedTodayHabitIds,
+        };
+        updatedCompletedIds.remove(habit.id);
+        _completedTodayHabitIds = updatedCompletedIds;
+      });
+      _showSnackBar('Today marked as not done.');
+      return;
+    }
+
+    final HabitEvent completion = HabitEvent(
+      id: _generateHabitEventId(),
+      habitId: habit.id,
+      eventType: HabitEventType.complete,
+      occurredAtUtc: nowLocal.toUtc(),
+      localDayKey: todayLocalDayKey,
+      tzOffsetMinutesAtEvent: captureTzOffsetMinutesAtEvent(nowLocal),
+    );
+
+    try {
+      await widget.habitEventRepository.saveEvent(completion);
+    } on DuplicateHabitCompletionException {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _completedTodayHabitIds = <String>{
+          ..._completedTodayHabitIds,
+          habit.id,
+        };
+      });
+      _showSnackBar('Already marked done for today.');
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _completedTodayHabitIds = <String>{..._completedTodayHabitIds, habit.id};
+    });
+    _showSnackBar('Marked done for today.');
+  }
+
+  Future<void> _promptBackdatedRelapse(final Habit habit) async {
+    if (_trackingHabitIds.contains(habit.id)) {
+      return;
+    }
+
+    final DateTime nowLocal = widget.clock();
+    final DateTime? selectedDate = await showDialog<DateTime>(
+      context: context,
+      builder: (final BuildContext context) {
+        return _BackdateRelapseDialog(nowLocal: nowLocal);
+      },
+    );
+
+    if (selectedDate == null) {
+      return;
+    }
+
+    setState(() {
+      _trackingHabitIds = <String>{..._trackingHabitIds, habit.id};
+    });
+
+    try {
+      final DateTime localDateTime = resolveBackdatedRelapseLocalDateTime(
+        nowLocal: nowLocal,
+        selectedLocalDate: selectedDate,
+      );
+      await _logRelapseAtLocalDateTime(
+        habit: habit,
+        localDateTime: localDateTime,
+        feedbackMessage: 'Backdated relapse logged.',
+      );
+    } on RelapseBackdateOutOfRangeException {
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('Backdate must be within the last 7 days.');
+    } on Object catch (error, stackTrace) {
+      _logger.error(
+        'Failed to save backdated relapse for habit ${habit.id}.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('Could not log backdated relapse.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          final Set<String> updatedBusyIds = <String>{..._trackingHabitIds};
+          updatedBusyIds.remove(habit.id);
+          _trackingHabitIds = updatedBusyIds;
+        });
+      }
+    }
+  }
+
+  Future<void> _logRelapseAtLocalDateTime({
+    required final Habit habit,
+    required final DateTime localDateTime,
+    required final String feedbackMessage,
+  }) async {
+    final HabitEvent event = HabitEvent(
+      id: _generateHabitEventId(),
+      habitId: habit.id,
+      eventType: HabitEventType.relapse,
+      occurredAtUtc: localDateTime.toUtc(),
+      localDayKey: toLocalDayKey(localDateTime),
+      tzOffsetMinutesAtEvent: captureTzOffsetMinutesAtEvent(localDateTime),
+    );
+    await widget.habitEventRepository.saveEvent(event);
+    if (!mounted) {
+      return;
+    }
+    _showSnackBar(feedbackMessage);
+  }
+
+  String _generateHabitEventId() {
+    _eventIdCounter += 1;
+    return 'event_${DateTime.now().toUtc().microsecondsSinceEpoch}_$_eventIdCounter';
+  }
+
   void _showSnackBar(final String message) {
     ScaffoldMessenger.of(
       context,
@@ -236,7 +461,11 @@ class _HomeScreenState extends State<HomeScreen> {
         return _HabitCard(
           key: ValueKey<String>('habit_card_${habit.id}'),
           habit: habit,
+          isCompletedToday: _completedTodayHabitIds.contains(habit.id),
+          isTrackingActionInProgress: _trackingHabitIds.contains(habit.id),
+          onQuickAction: () => _onQuickActionTap(habit),
           onEdit: () => _editHabit(habit),
+          onBackdateRelapse: () => _promptBackdatedRelapse(habit),
           onArchive: () => _archiveHabit(habit),
         );
       },
@@ -329,12 +558,20 @@ class _HabitCard extends StatelessWidget {
   const _HabitCard({
     super.key,
     required this.habit,
+    required this.isCompletedToday,
+    required this.isTrackingActionInProgress,
+    required this.onQuickAction,
     required this.onEdit,
+    required this.onBackdateRelapse,
     required this.onArchive,
   });
 
   final Habit habit;
+  final bool isCompletedToday;
+  final bool isTrackingActionInProgress;
+  final Future<void> Function() onQuickAction;
   final Future<void> Function() onEdit;
+  final Future<void> Function() onBackdateRelapse;
   final Future<void> Function() onArchive;
 
   @override
@@ -345,9 +582,22 @@ class _HabitCard extends StatelessWidget {
     final String modeLabel = habit.mode == HabitMode.positive
         ? 'Positive habit'
         : 'Negative habit';
+    final String trackingLabel = habit.mode == HabitMode.positive
+        ? (isCompletedToday ? 'Done today' : 'Not done today')
+        : 'Quick action: relapse now';
     final String subtitle = (habit.note == null || habit.note!.isEmpty)
-        ? modeLabel
-        : '$modeLabel • ${habit.note}';
+        ? '$modeLabel • $trackingLabel'
+        : '$modeLabel • $trackingLabel • ${habit.note}';
+
+    final IconData quickActionIcon = switch (habit.mode) {
+      HabitMode.positive =>
+        isCompletedToday ? Icons.undo_rounded : Icons.check_circle_rounded,
+      HabitMode.negative => Icons.warning_amber_rounded,
+    };
+    final String quickActionTooltip = switch (habit.mode) {
+      HabitMode.positive => isCompletedToday ? 'Undo today' : 'Mark done today',
+      HabitMode.negative => 'Log relapse now',
+    };
 
     return Card(
       color: cardColor,
@@ -375,38 +625,144 @@ class _HabitCard extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: PopupMenuButton<_HabitCardMenuAction>(
-          key: ValueKey<String>('habit_card_menu_${habit.id}'),
-          iconColor: textColor,
-          onSelected: (final _HabitCardMenuAction value) {
-            switch (value) {
-              case _HabitCardMenuAction.edit:
-                onEdit();
-              case _HabitCardMenuAction.archive:
-                onArchive();
-            }
-          },
-          itemBuilder: (final BuildContext context) {
-            return <PopupMenuEntry<_HabitCardMenuAction>>[
-              PopupMenuItem<_HabitCardMenuAction>(
-                key: ValueKey<String>('habit_card_edit_${habit.id}'),
-                value: _HabitCardMenuAction.edit,
-                child: const Text('Edit Habit'),
-              ),
-              PopupMenuItem<_HabitCardMenuAction>(
-                key: ValueKey<String>('habit_card_archive_${habit.id}'),
-                value: _HabitCardMenuAction.archive,
-                child: const Text('Archive Habit'),
-              ),
-            ];
-          },
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            IconButton(
+              key: ValueKey<String>('habit_card_quick_action_${habit.id}'),
+              onPressed: isTrackingActionInProgress ? null : onQuickAction,
+              icon: isTrackingActionInProgress
+                  ? SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(textColor),
+                      ),
+                    )
+                  : Icon(quickActionIcon),
+              tooltip: quickActionTooltip,
+              color: textColor,
+            ),
+            PopupMenuButton<_HabitCardMenuAction>(
+              key: ValueKey<String>('habit_card_menu_${habit.id}'),
+              iconColor: textColor,
+              onSelected: (final _HabitCardMenuAction value) {
+                switch (value) {
+                  case _HabitCardMenuAction.edit:
+                    onEdit();
+                  case _HabitCardMenuAction.backdateRelapse:
+                    onBackdateRelapse();
+                  case _HabitCardMenuAction.archive:
+                    onArchive();
+                }
+              },
+              itemBuilder: (final BuildContext context) {
+                return <PopupMenuEntry<_HabitCardMenuAction>>[
+                  PopupMenuItem<_HabitCardMenuAction>(
+                    key: ValueKey<String>('habit_card_edit_${habit.id}'),
+                    value: _HabitCardMenuAction.edit,
+                    child: const Text('Edit Habit'),
+                  ),
+                  if (habit.mode == HabitMode.negative)
+                    PopupMenuItem<_HabitCardMenuAction>(
+                      key: ValueKey<String>(
+                        'habit_card_backdate_relapse_${habit.id}',
+                      ),
+                      value: _HabitCardMenuAction.backdateRelapse,
+                      child: const Text('Backdate Relapse'),
+                    ),
+                  PopupMenuItem<_HabitCardMenuAction>(
+                    key: ValueKey<String>('habit_card_archive_${habit.id}'),
+                    value: _HabitCardMenuAction.archive,
+                    child: const Text('Archive Habit'),
+                  ),
+                ];
+              },
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-enum _HabitCardMenuAction { edit, archive }
+enum _HabitCardMenuAction { edit, backdateRelapse, archive }
+
+class _BackdateRelapseDialog extends StatefulWidget {
+  const _BackdateRelapseDialog({required this.nowLocal});
+
+  final DateTime nowLocal;
+
+  @override
+  State<_BackdateRelapseDialog> createState() => _BackdateRelapseDialogState();
+}
+
+class _BackdateRelapseDialogState extends State<_BackdateRelapseDialog> {
+  late final List<DateTime> _candidateDates;
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final DateTime now = widget.nowLocal.isUtc
+        ? widget.nowLocal.toLocal()
+        : widget.nowLocal;
+    final DateTime todayDateOnly = DateTime(now.year, now.month, now.day);
+    _candidateDates = List<DateTime>.generate(
+      7,
+      (final int index) => todayDateOnly.subtract(Duration(days: index + 1)),
+      growable: false,
+    );
+    _selectedDate = _candidateDates.first;
+  }
+
+  @override
+  Widget build(final BuildContext context) {
+    return AlertDialog(
+      title: const Text('Backdate Relapse'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text('Select a day from the last 7 days.'),
+          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<DateTime>(
+            key: const Key('backdate_relapse_date_dropdown'),
+            initialValue: _selectedDate,
+            items: _candidateDates
+                .map((final DateTime date) {
+                  return DropdownMenuItem<DateTime>(
+                    value: date,
+                    child: Text(_formatBackdateDateLabel(date)),
+                  );
+                })
+                .toList(growable: false),
+            onChanged: (final DateTime? value) {
+              if (value == null) {
+                return;
+              }
+              setState(() {
+                _selectedDate = value;
+              });
+            },
+          ),
+        ],
+      ),
+      actions: <Widget>[
+        TextButton(
+          key: const Key('backdate_relapse_cancel_button'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const Key('backdate_relapse_confirm_button'),
+          onPressed: () => Navigator.of(context).pop(_selectedDate),
+          child: const Text('Log Relapse'),
+        ),
+      ],
+    );
+  }
+}
 
 class _HabitFormDialog extends StatefulWidget {
   const _HabitFormDialog({required this.existingHabitNames, this.initialHabit});
@@ -822,3 +1178,12 @@ Color _foregroundFor(final Color backgroundColor) {
       ? Colors.black
       : Colors.white;
 }
+
+String _formatBackdateDateLabel(final DateTime localDate) {
+  final String year = localDate.year.toString().padLeft(4, '0');
+  final String month = localDate.month.toString().padLeft(2, '0');
+  final String day = localDate.day.toString().padLeft(2, '0');
+  return '$year-$month-$day';
+}
+
+DateTime _systemNow() => DateTime.now();

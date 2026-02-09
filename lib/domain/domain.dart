@@ -3,6 +3,7 @@ export 'entities/habit_event.dart';
 export 'repositories/habit_event_repository.dart';
 export 'repositories/habit_repository.dart';
 export 'time/local_day_key.dart';
+export 'time/relapse_backdate.dart';
 export 'time/timezone_offset.dart';
 export 'validation/habit_validation.dart';
 export 'value_objects/domain_constraints.dart';

@@ -8,9 +8,15 @@ import 'package:habit_tracker/domain/domain.dart';
 import 'package:habit_tracker/presentation/home/home_screen.dart';
 
 class HabitTrackerApp extends StatefulWidget {
-  const HabitTrackerApp({super.key, this.habitRepository, this.database});
+  const HabitTrackerApp({
+    super.key,
+    this.habitRepository,
+    this.habitEventRepository,
+    this.database,
+  });
 
   final HabitRepository? habitRepository;
+  final HabitEventRepository? habitEventRepository;
   final AppDatabase? database;
 
   @override
@@ -19,23 +25,32 @@ class HabitTrackerApp extends StatefulWidget {
 
 class _HabitTrackerAppState extends State<HabitTrackerApp> {
   late final HabitRepository _habitRepository;
+  late final HabitEventRepository _habitEventRepository;
   AppDatabase? _ownedDatabase;
 
   @override
   void initState() {
     super.initState();
     if (widget.habitRepository != null) {
+      if (widget.habitEventRepository == null) {
+        throw ArgumentError(
+          'habitEventRepository is required when habitRepository is provided.',
+        );
+      }
       _habitRepository = widget.habitRepository!;
+      _habitEventRepository = widget.habitEventRepository!;
       return;
     }
 
     if (widget.database != null) {
       _habitRepository = DriftHabitRepository(widget.database!);
+      _habitEventRepository = DriftHabitEventRepository(widget.database!);
       return;
     }
 
     _ownedDatabase = AppDatabase();
     _habitRepository = DriftHabitRepository(_ownedDatabase!);
+    _habitEventRepository = DriftHabitEventRepository(_ownedDatabase!);
   }
 
   @override
@@ -52,7 +67,10 @@ class _HabitTrackerAppState extends State<HabitTrackerApp> {
     return MaterialApp(
       title: 'Habit Tracker',
       theme: AppTheme.light(),
-      home: HomeScreen(habitRepository: _habitRepository),
+      home: HomeScreen(
+        habitRepository: _habitRepository,
+        habitEventRepository: _habitEventRepository,
+      ),
     );
   }
 }
