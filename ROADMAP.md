@@ -45,14 +45,14 @@ This roadmap is derived from `MVP.md` and is designed to be completed in small, 
 
 ## Stage 3: Habit Creation and Editing UI
 
-- [ ] R3.1 Build habit list/home scaffold with empty state.
-- [ ] R3.2 Build create habit form with fields: name, icon picker, color picker, mode, optional note.
-- [ ] R3.3 Enforce validation errors inline (required name, char limits, duplicate names).
-- [ ] R3.4 Build edit habit flow with prefilled values.
-- [ ] R3.5 Implement archive action with confirmation dialog.
-- [ ] R3.6 Ensure color choices maintain contrast-safe text in previews/cards.
-- [ ] R3.7 Add widget tests for create/edit/archive form behaviors.
-- [ ] R3.8 Stage 3 exit check: user can create/edit/archive habits successfully from UI.
+- [x] R3.1 Build habit list/home scaffold with empty state.
+- [x] R3.2 Build create habit form with fields: name, icon picker, color picker, mode, optional note.
+- [x] R3.3 Enforce validation errors inline (required name, char limits, duplicate names).
+- [x] R3.4 Build edit habit flow with prefilled values.
+- [x] R3.5 Implement archive action with confirmation dialog.
+- [x] R3.6 Ensure color choices maintain contrast-safe text in previews/cards.
+- [x] R3.7 Add widget tests for create/edit/archive form behaviors.
+- [x] R3.8 Stage 3 exit check: user can create/edit/archive habits successfully from UI.
 
 ## Stage 4: Tracking Actions (Positive + Negative)
 
