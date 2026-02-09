@@ -56,15 +56,15 @@ This roadmap is derived from `MVP.md` and is designed to be completed in small, 
 
 ## Stage 4: Tracking Actions (Positive + Negative)
 
-- [ ] R4.1 Add quick action button on habit cards for one-tap interaction.
-- [ ] R4.2 Positive mode: implement mark done for today (`localDayKey`-based).
-- [ ] R4.3 Positive mode: implement second tap as undo for today's completion.
-- [ ] R4.4 Positive mode: enforce max one completion per habit per `localDayKey`.
-- [ ] R4.5 Negative mode: implement log relapse now.
-- [ ] R4.6 Negative mode: implement backdate relapse up to 7 days.
-- [ ] R4.7 Negative mode: allow multiple relapse events; latest UTC event defines current elapsed streak.
-- [ ] R4.8 Add unit tests for duplicate prevention, undo behavior, and backdate constraints.
-- [ ] R4.9 Stage 4 exit check: all tracking actions function correctly from the home screen.
+- [x] R4.1 Add quick action button on habit cards for one-tap interaction.
+- [x] R4.2 Positive mode: implement mark done for today (`localDayKey`-based).
+- [x] R4.3 Positive mode: implement second tap as undo for today's completion.
+- [x] R4.4 Positive mode: enforce max one completion per habit per `localDayKey`.
+- [x] R4.5 Negative mode: implement log relapse now.
+- [x] R4.6 Negative mode: implement backdate relapse up to 7 days.
+- [x] R4.7 Negative mode: allow multiple relapse events; latest UTC event defines current elapsed streak.
+- [x] R4.8 Add unit tests for duplicate prevention, undo behavior, and backdate constraints.
+- [x] R4.9 Stage 4 exit check: all tracking actions function correctly from the home screen.
 
 ## Stage 5: Streak Calculation Engine
 
