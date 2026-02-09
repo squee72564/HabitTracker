@@ -1,16 +1,27 @@
 # habit_tracker
 
-A new Flutter project.
+Android-first Flutter habit tracker MVP with offline-first, local-only storage.
 
-## Getting Started
+## MVP Scope
 
-This project is a starting point for a Flutter application.
+- Create, edit, and archive habits.
+- Support two modes: positive (`Todo`) and negative (`Relapse`).
+- Log habit events and compute streaks using a hybrid time model:
+  - UTC timestamps for canonical event ordering.
+  - Persisted local day keys (`YYYY-MM-DD`) for day-based logic.
+- Show a monthly habit visualization grid.
+- Keep state management Flutter-native only (`setState`, `ValueNotifier`, `ChangeNotifier`).
 
-A few resources to get you started if this is your first Flutter project:
+## Out of Scope (MVP)
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Cloud sync, auth, or multi-device data.
+- Social/sharing features.
+- Advanced recurrence rules.
+- Advanced analytics beyond streaks and monthly grid.
+- Widgets/watch integrations.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Local-Only Data Model
+
+- All source-of-truth data is stored on-device in SQLite via Drift (`drift`, `drift_flutter`, `sqlite3_flutter_libs`).
+- Core persisted objects are `Habit` and `HabitEvent`.
+- No remote backend is used for MVP; uninstalling the app can result in data loss.

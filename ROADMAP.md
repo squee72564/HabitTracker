@@ -12,12 +12,12 @@ This roadmap is derived from `MVP.md` and is designed to be completed in small, 
 
 - [x] R0.1 Lock MVP state management to Flutter-native primitives (`setState`, `ValueNotifier`/`ChangeNotifier`) and document in `README.md` (no external framework unless needed later).
 - [x] R0.2 Lock local database stack to Drift + SQLite (`drift`, `drift_flutter`, `sqlite3_flutter_libs`) and document schema strategy.
-- [ ] R0.3 Add required dependencies for persistence (`drift`, `drift_flutter`, `sqlite3_flutter_libs`, `drift_dev`, `build_runner`), notifications, and timezone-safe date utilities.
-- [ ] R0.4 Create folder structure for `core`, `features`, `data`, `domain`, `presentation`.
+- [x] R0.3 Add required dependencies for persistence (`drift`, `drift_flutter`, `sqlite3_flutter_libs`, `drift_dev`, `build_runner`), notifications, and timezone-safe date utilities.
+- [x] R0.4 Create folder structure for `core`, `features`, `data`, `domain`, `presentation`.
 - [ ] R0.5 Set up app theme tokens (spacing, radii, typography, semantic colors).
 - [ ] R0.6 Add a lightweight logger and global error boundary.
 - [ ] R0.7 Add lint rules and baseline CI command (`flutter analyze`, `flutter test`).
-- [ ] R0.8 Add `README` section describing MVP scope and out-of-scope boundaries.
+- [x] R0.8 Add `README` section describing MVP scope and out-of-scope boundaries.
 - [ ] R0.9 Stage 0 exit check: app runs on Android emulator and CI checks pass locally.
 
 ## Stage 1: Domain Model + Hybrid Time Model

@@ -34,6 +34,14 @@ Use Flutter-native commands:
 - Add or update tests when implementing non-trivial logic
 - Widget tests preferred for UI behavior
 - Pure Dart logic should be unit tested
+- Default validation sequence for implementation changes:
+  - `flutter pub get` (must pass)
+  - `flutter analyze` (must report no issues)
+  - `flutter test` (must pass all tests)
+- For focused verification during development, run a specific file as needed:
+  - `flutter test test/widget_test.dart`
+- If persistence schema/codegen changes are made, regenerate before analyze/test:
+  - `dart run build_runner build --delete-conflicting-outputs`
 
 ## MVP & Roadmap
 Read these files only as needed focusing on progressive disclosure
