@@ -79,15 +79,15 @@ This roadmap is derived from `MVP.md` and is designed to be completed in small, 
 
 ## Stage 6: Dashboard and Monthly Grid Visualization
 
-- [ ] R6.1 Build home dashboard cards showing icon, name, mode, current streak, quick action.
-- [ ] R6.2 Build monthly calendar grid component (GitHub-style daily cells).
-- [ ] R6.3 Positive mode grid: map each day to done/missed/future state.
-- [ ] R6.4 Negative mode grid: render relapse-day marker style consistently.
-- [ ] R6.5 Add month navigation controls and current month indicator.
-- [ ] R6.6 Add legend/tooltips for first-time clarity.
-- [ ] R6.7 Add responsive behavior for small Android devices (cell size and text overflow handling).
-- [ ] R6.8 Add widget tests for card states and grid rendering.
-- [ ] R6.9 Stage 6 exit check: dashboard and monthly view are usable and visually consistent.
+- [x] R6.1 Build home dashboard cards showing icon, name, mode, current streak, quick action.
+- [x] R6.2 Build monthly calendar grid component (GitHub-style daily cells).
+- [x] R6.3 Positive mode grid: map each day to done/missed/future state.
+- [x] R6.4 Negative mode grid: render relapse-day marker style consistently.
+- [x] R6.5 Add month navigation controls and current month indicator.
+- [x] R6.6 Add legend/tooltips for first-time clarity.
+- [x] R6.7 Add responsive behavior for small Android devices (cell size and text overflow handling).
+- [x] R6.8 Add widget tests for card states and grid rendering.
+- [x] R6.9 Stage 6 exit check: dashboard and monthly view are usable and visually consistent.
 
 ## Stage 7: Settings + Notifications
 
