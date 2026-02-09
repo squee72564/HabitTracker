@@ -25,3 +25,10 @@ Android-first Flutter habit tracker MVP with offline-first, local-only storage.
 - All source-of-truth data is stored on-device in SQLite via Drift (`drift`, `drift_flutter`, `sqlite3_flutter_libs`).
 - Core persisted objects are `Habit` and `HabitEvent`.
 - No remote backend is used for MVP; uninstalling the app can result in data loss.
+
+## Local Validation
+
+- Baseline CI checks can be run locally with `./tool/ci.sh`.
+- Equivalent manual commands:
+  - `flutter analyze`
+  - `flutter test`
