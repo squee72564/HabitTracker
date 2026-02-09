@@ -7,6 +7,7 @@ class Habit {
     required this.iconKey,
     required this.colorHex,
     required this.mode,
+    this.note,
     required final DateTime createdAtUtc,
     final DateTime? archivedAtUtc,
   }) : createdAtUtc = _requireUtc(createdAtUtc, fieldName: 'createdAtUtc'),
@@ -19,6 +20,7 @@ class Habit {
   final String iconKey;
   final String colorHex;
   final HabitMode mode;
+  final String? note;
   final DateTime createdAtUtc;
   final DateTime? archivedAtUtc;
 
@@ -30,8 +32,10 @@ class Habit {
     final String? iconKey,
     final String? colorHex,
     final HabitMode? mode,
+    final String? note,
     final DateTime? createdAtUtc,
     final DateTime? archivedAtUtc,
+    final bool clearNote = false,
     final bool clearArchivedAtUtc = false,
   }) {
     return Habit(
@@ -40,6 +44,7 @@ class Habit {
       iconKey: iconKey ?? this.iconKey,
       colorHex: colorHex ?? this.colorHex,
       mode: mode ?? this.mode,
+      note: clearNote ? null : note ?? this.note,
       createdAtUtc: createdAtUtc ?? this.createdAtUtc,
       archivedAtUtc: clearArchivedAtUtc
           ? null

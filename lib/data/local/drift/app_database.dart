@@ -12,7 +12,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -21,7 +21,9 @@ class AppDatabase extends _$AppDatabase {
       await _createIndexes();
     },
     onUpgrade: (final Migrator migrator, final int from, final int to) async {
-      // Versioned migrations will be added as schema evolves.
+      if (from < 2) {
+        await migrator.addColumn(habits, habits.note);
+      }
       await _createIndexes();
     },
     beforeOpen: (final OpeningDetails details) async {

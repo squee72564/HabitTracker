@@ -79,6 +79,7 @@ HabitsCompanion _toHabitCompanion(final Habit habit) {
     iconKey: habit.iconKey,
     colorHex: habit.colorHex,
     mode: habit.mode,
+    note: Value<String?>(habit.note),
     createdAtUtc: habit.createdAtUtc,
     archivedAtUtc: Value<DateTime?>(habit.archivedAtUtc),
   );
@@ -91,6 +92,7 @@ Habit _toDomainHabit(final HabitRecord record) {
     iconKey: record.iconKey,
     colorHex: record.colorHex,
     mode: record.mode,
+    note: record.note,
     createdAtUtc: record.createdAtUtc,
     archivedAtUtc: record.archivedAtUtc,
   );

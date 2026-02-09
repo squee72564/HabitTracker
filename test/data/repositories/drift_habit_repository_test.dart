@@ -20,6 +20,7 @@ void main() {
     final Habit habit = _habit(
       id: 'habit-1',
       name: 'Read',
+      note: 'Before breakfast',
       createdAtUtc: DateTime.utc(2026, 2, 10, 1),
     );
 
@@ -29,6 +30,7 @@ void main() {
     expect(loaded, isNotNull);
     expect(loaded!.id, habit.id);
     expect(loaded.name, habit.name);
+    expect(loaded.note, habit.note);
     expect(loaded.createdAtUtc, habit.createdAtUtc);
     expect(loaded.archivedAtUtc, isNull);
   });
@@ -41,12 +43,17 @@ void main() {
     );
     await repository.saveHabit(habit);
 
-    final Habit updated = habit.copyWith(name: 'Read Daily');
+    final Habit updated = habit.copyWith(
+      name: 'Read Daily',
+      note: null,
+      clearNote: true,
+    );
     await repository.saveHabit(updated);
 
     final Habit? loaded = await repository.findHabitById(habit.id);
     expect(loaded, isNotNull);
     expect(loaded!.name, 'Read Daily');
+    expect(loaded.note, isNull);
 
     final List<Habit> active = await repository.listActiveHabits();
     expect(active.length, 1);
@@ -90,6 +97,7 @@ void main() {
 Habit _habit({
   required final String id,
   required final String name,
+  final String? note,
   required final DateTime createdAtUtc,
 }) {
   return Habit(
@@ -98,6 +106,7 @@ Habit _habit({
     iconKey: 'book',
     colorHex: '#FFAA00',
     mode: HabitMode.positive,
+    note: note,
     createdAtUtc: createdAtUtc,
   );
 }

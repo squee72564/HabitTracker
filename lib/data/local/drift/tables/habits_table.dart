@@ -13,6 +13,8 @@ class Habits extends Table {
 
   TextColumn get mode => text().map(const HabitModeConverter())();
 
+  TextColumn get note => text().withLength(min: 0, max: 120).nullable()();
+
   IntColumn get createdAtUtc => integer().map(const UtcDateTimeConverter())();
 
   IntColumn get archivedAtUtc =>

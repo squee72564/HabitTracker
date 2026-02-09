@@ -61,6 +61,19 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, HabitRecord> {
         type: DriftSqlType.string,
         requiredDuringInsert: true,
       ).withConverter<HabitMode>($HabitsTable.$convertermode);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 0,
+      maxTextLength: 120,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   late final GeneratedColumnWithTypeConverter<DateTime, int> createdAtUtc =
       GeneratedColumn<int>(
@@ -86,6 +99,7 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, HabitRecord> {
     iconKey,
     colorHex,
     mode,
+    note,
     createdAtUtc,
     archivedAtUtc,
   ];
@@ -130,6 +144,12 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, HabitRecord> {
     } else if (isInserting) {
       context.missing(_colorHexMeta);
     }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
     return context;
   }
 
@@ -160,6 +180,10 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, HabitRecord> {
           DriftSqlType.string,
           data['${effectivePrefix}mode'],
         )!,
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
       ),
       createdAtUtc: $HabitsTable.$convertercreatedAtUtc.fromSql(
         attachedDatabase.typeMapping.read(
@@ -195,6 +219,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
   final String iconKey;
   final String colorHex;
   final HabitMode mode;
+  final String? note;
   final DateTime createdAtUtc;
   final DateTime? archivedAtUtc;
   const HabitRecord({
@@ -203,6 +228,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
     required this.iconKey,
     required this.colorHex,
     required this.mode,
+    this.note,
     required this.createdAtUtc,
     this.archivedAtUtc,
   });
@@ -215,6 +241,9 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
     map['color_hex'] = Variable<String>(colorHex);
     {
       map['mode'] = Variable<String>($HabitsTable.$convertermode.toSql(mode));
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
     }
     {
       map['created_at_utc'] = Variable<int>(
@@ -236,6 +265,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
       iconKey: Value(iconKey),
       colorHex: Value(colorHex),
       mode: Value(mode),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAtUtc: Value(createdAtUtc),
       archivedAtUtc: archivedAtUtc == null && nullToAbsent
           ? const Value.absent()
@@ -254,6 +284,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
       iconKey: serializer.fromJson<String>(json['iconKey']),
       colorHex: serializer.fromJson<String>(json['colorHex']),
       mode: serializer.fromJson<HabitMode>(json['mode']),
+      note: serializer.fromJson<String?>(json['note']),
       createdAtUtc: serializer.fromJson<DateTime>(json['createdAtUtc']),
       archivedAtUtc: serializer.fromJson<DateTime?>(json['archivedAtUtc']),
     );
@@ -267,6 +298,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
       'iconKey': serializer.toJson<String>(iconKey),
       'colorHex': serializer.toJson<String>(colorHex),
       'mode': serializer.toJson<HabitMode>(mode),
+      'note': serializer.toJson<String?>(note),
       'createdAtUtc': serializer.toJson<DateTime>(createdAtUtc),
       'archivedAtUtc': serializer.toJson<DateTime?>(archivedAtUtc),
     };
@@ -278,6 +310,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
     String? iconKey,
     String? colorHex,
     HabitMode? mode,
+    Value<String?> note = const Value.absent(),
     DateTime? createdAtUtc,
     Value<DateTime?> archivedAtUtc = const Value.absent(),
   }) => HabitRecord(
@@ -286,6 +319,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
     iconKey: iconKey ?? this.iconKey,
     colorHex: colorHex ?? this.colorHex,
     mode: mode ?? this.mode,
+    note: note.present ? note.value : this.note,
     createdAtUtc: createdAtUtc ?? this.createdAtUtc,
     archivedAtUtc: archivedAtUtc.present
         ? archivedAtUtc.value
@@ -298,6 +332,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
       iconKey: data.iconKey.present ? data.iconKey.value : this.iconKey,
       colorHex: data.colorHex.present ? data.colorHex.value : this.colorHex,
       mode: data.mode.present ? data.mode.value : this.mode,
+      note: data.note.present ? data.note.value : this.note,
       createdAtUtc: data.createdAtUtc.present
           ? data.createdAtUtc.value
           : this.createdAtUtc,
@@ -315,6 +350,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
           ..write('iconKey: $iconKey, ')
           ..write('colorHex: $colorHex, ')
           ..write('mode: $mode, ')
+          ..write('note: $note, ')
           ..write('createdAtUtc: $createdAtUtc, ')
           ..write('archivedAtUtc: $archivedAtUtc')
           ..write(')'))
@@ -328,6 +364,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
     iconKey,
     colorHex,
     mode,
+    note,
     createdAtUtc,
     archivedAtUtc,
   );
@@ -340,6 +377,7 @@ class HabitRecord extends DataClass implements Insertable<HabitRecord> {
           other.iconKey == this.iconKey &&
           other.colorHex == this.colorHex &&
           other.mode == this.mode &&
+          other.note == this.note &&
           other.createdAtUtc == this.createdAtUtc &&
           other.archivedAtUtc == this.archivedAtUtc);
 }
@@ -350,6 +388,7 @@ class HabitsCompanion extends UpdateCompanion<HabitRecord> {
   final Value<String> iconKey;
   final Value<String> colorHex;
   final Value<HabitMode> mode;
+  final Value<String?> note;
   final Value<DateTime> createdAtUtc;
   final Value<DateTime?> archivedAtUtc;
   final Value<int> rowid;
@@ -359,6 +398,7 @@ class HabitsCompanion extends UpdateCompanion<HabitRecord> {
     this.iconKey = const Value.absent(),
     this.colorHex = const Value.absent(),
     this.mode = const Value.absent(),
+    this.note = const Value.absent(),
     this.createdAtUtc = const Value.absent(),
     this.archivedAtUtc = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -369,6 +409,7 @@ class HabitsCompanion extends UpdateCompanion<HabitRecord> {
     required String iconKey,
     required String colorHex,
     required HabitMode mode,
+    this.note = const Value.absent(),
     required DateTime createdAtUtc,
     this.archivedAtUtc = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -384,6 +425,7 @@ class HabitsCompanion extends UpdateCompanion<HabitRecord> {
     Expression<String>? iconKey,
     Expression<String>? colorHex,
     Expression<String>? mode,
+    Expression<String>? note,
     Expression<int>? createdAtUtc,
     Expression<int>? archivedAtUtc,
     Expression<int>? rowid,
@@ -394,6 +436,7 @@ class HabitsCompanion extends UpdateCompanion<HabitRecord> {
       if (iconKey != null) 'icon_key': iconKey,
       if (colorHex != null) 'color_hex': colorHex,
       if (mode != null) 'mode': mode,
+      if (note != null) 'note': note,
       if (createdAtUtc != null) 'created_at_utc': createdAtUtc,
       if (archivedAtUtc != null) 'archived_at_utc': archivedAtUtc,
       if (rowid != null) 'rowid': rowid,
@@ -406,6 +449,7 @@ class HabitsCompanion extends UpdateCompanion<HabitRecord> {
     Value<String>? iconKey,
     Value<String>? colorHex,
     Value<HabitMode>? mode,
+    Value<String?>? note,
     Value<DateTime>? createdAtUtc,
     Value<DateTime?>? archivedAtUtc,
     Value<int>? rowid,
@@ -416,6 +460,7 @@ class HabitsCompanion extends UpdateCompanion<HabitRecord> {
       iconKey: iconKey ?? this.iconKey,
       colorHex: colorHex ?? this.colorHex,
       mode: mode ?? this.mode,
+      note: note ?? this.note,
       createdAtUtc: createdAtUtc ?? this.createdAtUtc,
       archivedAtUtc: archivedAtUtc ?? this.archivedAtUtc,
       rowid: rowid ?? this.rowid,
@@ -442,6 +487,9 @@ class HabitsCompanion extends UpdateCompanion<HabitRecord> {
         $HabitsTable.$convertermode.toSql(mode.value),
       );
     }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
     if (createdAtUtc.present) {
       map['created_at_utc'] = Variable<int>(
         $HabitsTable.$convertercreatedAtUtc.toSql(createdAtUtc.value),
@@ -466,6 +514,7 @@ class HabitsCompanion extends UpdateCompanion<HabitRecord> {
           ..write('iconKey: $iconKey, ')
           ..write('colorHex: $colorHex, ')
           ..write('mode: $mode, ')
+          ..write('note: $note, ')
           ..write('createdAtUtc: $createdAtUtc, ')
           ..write('archivedAtUtc: $archivedAtUtc, ')
           ..write('rowid: $rowid')
@@ -994,6 +1043,7 @@ typedef $$HabitsTableCreateCompanionBuilder =
       required String iconKey,
       required String colorHex,
       required HabitMode mode,
+      Value<String?> note,
       required DateTime createdAtUtc,
       Value<DateTime?> archivedAtUtc,
       Value<int> rowid,
@@ -1005,6 +1055,7 @@ typedef $$HabitsTableUpdateCompanionBuilder =
       Value<String> iconKey,
       Value<String> colorHex,
       Value<HabitMode> mode,
+      Value<String?> note,
       Value<DateTime> createdAtUtc,
       Value<DateTime?> archivedAtUtc,
       Value<int> rowid,
@@ -1067,6 +1118,11 @@ class $$HabitsTableFilterComposer
         column: $table.mode,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnWithTypeConverterFilters<DateTime, DateTime, int> get createdAtUtc =>
       $composableBuilder(
@@ -1140,6 +1196,11 @@ class $$HabitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAtUtc => $composableBuilder(
     column: $table.createdAtUtc,
     builder: (column) => ColumnOrderings(column),
@@ -1174,6 +1235,9 @@ class $$HabitsTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<HabitMode, String> get mode =>
       $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
 
   GeneratedColumnWithTypeConverter<DateTime, int> get createdAtUtc =>
       $composableBuilder(
@@ -1246,6 +1310,7 @@ class $$HabitsTableTableManager
                 Value<String> iconKey = const Value.absent(),
                 Value<String> colorHex = const Value.absent(),
                 Value<HabitMode> mode = const Value.absent(),
+                Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAtUtc = const Value.absent(),
                 Value<DateTime?> archivedAtUtc = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -1255,6 +1320,7 @@ class $$HabitsTableTableManager
                 iconKey: iconKey,
                 colorHex: colorHex,
                 mode: mode,
+                note: note,
                 createdAtUtc: createdAtUtc,
                 archivedAtUtc: archivedAtUtc,
                 rowid: rowid,
@@ -1266,6 +1332,7 @@ class $$HabitsTableTableManager
                 required String iconKey,
                 required String colorHex,
                 required HabitMode mode,
+                Value<String?> note = const Value.absent(),
                 required DateTime createdAtUtc,
                 Value<DateTime?> archivedAtUtc = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -1275,6 +1342,7 @@ class $$HabitsTableTableManager
                 iconKey: iconKey,
                 colorHex: colorHex,
                 mode: mode,
+                note: note,
                 createdAtUtc: createdAtUtc,
                 archivedAtUtc: archivedAtUtc,
                 rowid: rowid,
