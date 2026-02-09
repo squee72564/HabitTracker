@@ -22,14 +22,14 @@ This roadmap is derived from `MVP.md` and is designed to be completed in small, 
 
 ## Stage 1: Domain Model + Hybrid Time Model
 
-- [ ] R1.1 Implement `Habit` entity (`id`, `name`, `iconKey`, `colorHex`, `mode`, `createdAtUtc`, `archivedAtUtc`).
-- [ ] R1.2 Implement `HabitEvent` entity (`id`, `habitId`, `eventType`, `occurredAtUtc`, `localDayKey`, `tzOffsetMinutesAtEvent`, `source`).
-- [ ] R1.3 Add enum/value objects for `HabitMode`, `HabitEventType`, and validation constraints.
-- [ ] R1.4 Implement helper to generate `localDayKey` from device local time (`YYYY-MM-DD`).
-- [ ] R1.5 Implement helper to capture `tzOffsetMinutesAtEvent` at event creation.
-- [ ] R1.6 Add domain validation for name length, note length, and case-insensitive duplicate names.
-- [ ] R1.7 Add unit tests for date conversion, `localDayKey` generation, and validation rules.
-- [ ] R1.8 Stage 1 exit check: all domain tests pass, including midnight and timezone boundary tests.
+- [x] R1.1 Implement `Habit` entity (`id`, `name`, `iconKey`, `colorHex`, `mode`, `createdAtUtc`, `archivedAtUtc`).
+- [x] R1.2 Implement `HabitEvent` entity (`id`, `habitId`, `eventType`, `occurredAtUtc`, `localDayKey`, `tzOffsetMinutesAtEvent`, `source`).
+- [x] R1.3 Add enum/value objects for `HabitMode`, `HabitEventType`, and validation constraints.
+- [x] R1.4 Implement helper to generate `localDayKey` from device local time (`YYYY-MM-DD`).
+- [x] R1.5 Implement helper to capture `tzOffsetMinutesAtEvent` at event creation.
+- [x] R1.6 Add domain validation for name length, note length, and case-insensitive duplicate names.
+- [x] R1.7 Add unit tests for date conversion, `localDayKey` generation, and validation rules.
+- [x] R1.8 Stage 1 exit check: all domain tests pass, including midnight and timezone boundary tests.
 
 ## Stage 2: Persistence Layer (Offline-First, Drift + SQLite)
 
