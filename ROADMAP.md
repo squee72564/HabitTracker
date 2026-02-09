@@ -68,14 +68,14 @@ This roadmap is derived from `MVP.md` and is designed to be completed in small, 
 
 ## Stage 5: Streak Calculation Engine
 
-- [ ] R5.1 Implement positive streak calculator from sorted unique completion `localDayKey` values.
-- [ ] R5.2 Implement positive best streak calculator.
-- [ ] R5.3 Implement negative current streak as duration since latest relapse `occurredAtUtc`.
-- [ ] R5.4 Implement fallback text for negative mode with no relapse: `Started X ago` from `createdAtUtc`.
-- [ ] R5.5 Add timezone-change resilience tests (historical local day keys never shift).
-- [ ] R5.6 Add midnight edge tests for both modes (23:59 and 00:00 boundaries).
-- [ ] R5.7 Add leap day/month boundary tests.
-- [ ] R5.8 Stage 5 exit check: streak outputs match `MVP.md` rules across all edge-case tests.
+- [x] R5.1 Implement positive streak calculator from sorted unique completion `localDayKey` values.
+- [x] R5.2 Implement positive best streak calculator.
+- [x] R5.3 Implement negative current streak as duration since latest relapse `occurredAtUtc`.
+- [x] R5.4 Implement fallback text for negative mode with no relapse: `Started X ago` from `createdAtUtc`.
+- [x] R5.5 Add timezone-change resilience tests (historical local day keys never shift).
+- [x] R5.6 Add midnight edge tests for both modes (23:59 and 00:00 boundaries).
+- [x] R5.7 Add leap day/month boundary tests.
+- [x] R5.8 Stage 5 exit check: streak outputs match `MVP.md` rules across all edge-case tests.
 
 ## Stage 6: Dashboard and Monthly Grid Visualization
 
