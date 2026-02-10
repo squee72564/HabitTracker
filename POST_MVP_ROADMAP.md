@@ -75,16 +75,16 @@ This roadmap extends the shipped MVP with UX and control improvements discovered
 
 ## Stage P1: Habit Form UX Upgrade (Icons + Colors)
 
-- [ ] P1.1 Replace icon chip list with compact icon-only grid selection UI.
-- [ ] P1.2 Expand icon catalog significantly and organize for discoverability.
-- [ ] P1.3 Add pagination or horizontal swiping between icon pages when icon count exceeds viewport.
-- [ ] P1.4 Make icon grid responsive (column count adapts to width; no overflow at large text scales).
-- [ ] P1.5 Remove icon text labels from selection controls while preserving accessibility semantics.
+- [x] P1.1 Replace icon chip list with compact icon-only grid selection UI.
+- [x] P1.2 Expand icon catalog significantly and organize for discoverability.
+- [x] P1.3 Add pagination or horizontal swiping between icon pages when icon count exceeds viewport.
+- [x] P1.4 Make icon grid responsive (column count adapts to width; no overflow at large text scales).
+- [x] P1.5 Remove icon text labels from selection controls while preserving accessibility semantics.
 - [ ] P1.6 Expand default color palette with curated accessible options.
 - [ ] P1.7 Add optional custom color selection flow (e.g., picker/wheel) with persisted hex values.
 - [ ] P1.8 Enforce contrast-safe foreground behavior for both preset and custom colors.
 - [ ] P1.9 Update edit flow so existing stored colors/icons always render without lossy fallback.
-- [ ] P1.10 Add/update widget tests for icon grid behavior, responsive layout, and color selection/persistence.
+- [~] P1.10 Add/update widget tests for icon grid behavior, responsive layout, and color selection/persistence.
 - [ ] P1.11 Stage exit check: create/edit form remains stable on small screens and high text scaling with expanded icon/color options.
 
 ## Stage P2: Reminder UX Refactor (Per-Habit + Global Control)
