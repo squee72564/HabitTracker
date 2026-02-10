@@ -1428,6 +1428,8 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
   late String _selectedIconKey;
   late String _selectedColorHex;
   late HabitMode _selectedMode;
+  int _iconPickerPage = 0;
+  bool _didInitializeIconPickerPage = false;
 
   bool get _isEditing => widget.initialHabit != null;
 
@@ -1492,30 +1494,7 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
                 const SizedBox(height: AppSpacing.sm),
                 Text('Icon', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: _habitIconOptions
-                      .map((final _HabitIconOption option) {
-                        return ChoiceChip(
-                          key: ValueKey<String>(
-                            'habit_form_icon_${option.key}',
-                          ),
-                          avatar: Icon(option.icon, size: 18),
-                          label: Text(option.label),
-                          selected: _selectedIconKey == option.key,
-                          onSelected: (final bool selected) {
-                            if (!selected) {
-                              return;
-                            }
-                            setState(() {
-                              _selectedIconKey = option.key;
-                            });
-                          },
-                        );
-                      })
-                      .toList(growable: false),
-                ),
+                _buildIconPicker(context),
                 const SizedBox(height: AppSpacing.md),
                 Text('Color', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: AppSpacing.xs),
@@ -1618,23 +1597,28 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Icon(
-                          _iconForKey(_selectedIconKey),
-                          color: previewTextColor,
+                        Row(
+                          children: <Widget>[
+                            Icon(
+                              _iconForKey(_selectedIconKey),
+                              color: previewTextColor,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                previewName,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(color: previewTextColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            previewName,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(color: previewTextColor),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
+                        const SizedBox(height: AppSpacing.xs),
                         Text(
                           _selectedMode == HabitMode.positive
                               ? 'Positive'
@@ -1715,6 +1699,153 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
       ),
     );
   }
+
+  Widget _buildIconPicker(final BuildContext context) {
+    return LayoutBuilder(
+      builder: (final BuildContext context, final BoxConstraints constraints) {
+        final ThemeData theme = Theme.of(context);
+        final ColorScheme colorScheme = theme.colorScheme;
+        final double textScale = MediaQuery.textScalerOf(context).scale(1);
+        final double minTileWidth = textScale >= 1.4 ? 60 : 52;
+        final int columnCount = (constraints.maxWidth / minTileWidth)
+            .floor()
+            .clamp(4, 7);
+        final int rowCount = textScale >= 1.4 ? 2 : 3;
+        final int iconsPerPage = columnCount * rowCount;
+        final int pageCount = (_habitIconOptions.length / iconsPerPage).ceil();
+        final int selectedIndex = _habitIconOptions.indexWhere(
+          (final _HabitIconOption option) => option.key == _selectedIconKey,
+        );
+        if (!_didInitializeIconPickerPage && selectedIndex >= 0) {
+          _iconPickerPage = selectedIndex ~/ iconsPerPage;
+          _didInitializeIconPickerPage = true;
+        }
+        _iconPickerPage = _iconPickerPage.clamp(0, pageCount - 1);
+
+        final int start = _iconPickerPage * iconsPerPage;
+        final int end = (start + iconsPerPage).clamp(
+          0,
+          _habitIconOptions.length,
+        );
+        final List<_HabitIconOption> visibleOptions = _habitIconOptions.sublist(
+          start,
+          end,
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    'Page ${_iconPickerPage + 1} of $pageCount',
+                    key: const Key('habit_form_icon_page_label'),
+                    style: theme.textTheme.labelMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  key: const Key('habit_form_icon_page_previous'),
+                  tooltip: 'Previous icon page',
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 36,
+                    height: 36,
+                  ),
+                  padding: EdgeInsets.zero,
+                  onPressed: _iconPickerPage == 0
+                      ? null
+                      : () {
+                          setState(() {
+                            _iconPickerPage -= 1;
+                          });
+                        },
+                  icon: const Icon(Icons.chevron_left_rounded),
+                ),
+                IconButton(
+                  key: const Key('habit_form_icon_page_next'),
+                  tooltip: 'Next icon page',
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 36,
+                    height: 36,
+                  ),
+                  padding: EdgeInsets.zero,
+                  onPressed: _iconPickerPage >= pageCount - 1
+                      ? null
+                      : () {
+                          setState(() {
+                            _iconPickerPage += 1;
+                          });
+                        },
+                  icon: const Icon(Icons.chevron_right_rounded),
+                ),
+              ],
+            ),
+            GridView.builder(
+              key: ValueKey<String>(
+                'habit_form_icon_page_${_iconPickerPage + 1}',
+              ),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columnCount,
+                mainAxisSpacing: AppSpacing.xs,
+                crossAxisSpacing: AppSpacing.xs,
+                childAspectRatio: 1,
+              ),
+              itemCount: visibleOptions.length,
+              itemBuilder: (final BuildContext context, final int index) {
+                final _HabitIconOption option = visibleOptions[index];
+                final bool isSelected = _selectedIconKey == option.key;
+                final BorderSide borderSide = BorderSide(
+                  color: isSelected
+                      ? colorScheme.primary
+                      : colorScheme.outlineVariant,
+                  width: isSelected ? 2 : 1,
+                );
+                return Semantics(
+                  label: '${option.label} icon',
+                  selected: isSelected,
+                  button: true,
+                  child: Tooltip(
+                    message: option.label,
+                    child: OutlinedButton(
+                      key: ValueKey<String>('habit_form_icon_${option.key}'),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(44, 44),
+                        side: borderSide,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadii.sm),
+                        ),
+                        backgroundColor: isSelected
+                            ? colorScheme.primaryContainer
+                            : null,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _selectedIconKey = option.key;
+                        });
+                      },
+                      child: Icon(
+                        option.icon,
+                        color: isSelected
+                            ? colorScheme.onPrimaryContainer
+                            : colorScheme.onSurface,
+                        size: textScale >= 1.4 ? 22 : 20,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _HabitFormResult {
@@ -1777,6 +1908,80 @@ const List<_HabitIconOption> _habitIconOptions = <_HabitIconOption>[
     key: 'journal',
     label: 'Journal',
     icon: Icons.edit_note_rounded,
+  ),
+  _HabitIconOption(
+    key: 'run',
+    label: 'Run',
+    icon: Icons.directions_run_rounded,
+  ),
+  _HabitIconOption(
+    key: 'bike',
+    label: 'Bike',
+    icon: Icons.directions_bike_rounded,
+  ),
+  _HabitIconOption(key: 'swim', label: 'Swim', icon: Icons.pool_rounded),
+  _HabitIconOption(
+    key: 'stretch',
+    label: 'Stretch',
+    icon: Icons.accessibility_new_rounded,
+  ),
+  _HabitIconOption(key: 'study', label: 'Study', icon: Icons.school_rounded),
+  _HabitIconOption(
+    key: 'focus',
+    label: 'Focus',
+    icon: Icons.psychology_rounded,
+  ),
+  _HabitIconOption(
+    key: 'music',
+    label: 'Music',
+    icon: Icons.music_note_rounded,
+  ),
+  _HabitIconOption(key: 'coding', label: 'Code', icon: Icons.code_rounded),
+  _HabitIconOption(
+    key: 'clean',
+    label: 'Clean',
+    icon: Icons.cleaning_services_rounded,
+  ),
+  _HabitIconOption(
+    key: 'meds',
+    label: 'Medicine',
+    icon: Icons.medication_rounded,
+  ),
+  _HabitIconOption(
+    key: 'vitamins',
+    label: 'Vitamins',
+    icon: Icons.vaccines_rounded,
+  ),
+  _HabitIconOption(key: 'sun', label: 'Sunlight', icon: Icons.wb_sunny_rounded),
+  _HabitIconOption(
+    key: 'screenfree',
+    label: 'Screen Free',
+    icon: Icons.phone_disabled_rounded,
+  ),
+  _HabitIconOption(key: 'plan', label: 'Plan', icon: Icons.event_note_rounded),
+  _HabitIconOption(key: 'budget', label: 'Budget', icon: Icons.savings_rounded),
+  _HabitIconOption(
+    key: 'gratitude',
+    label: 'Gratitude',
+    icon: Icons.favorite_rounded,
+  ),
+  _HabitIconOption(key: 'family', label: 'Family', icon: Icons.groups_rounded),
+  _HabitIconOption(key: 'call', label: 'Call', icon: Icons.call_rounded),
+  _HabitIconOption(
+    key: 'sleepEarly',
+    label: 'Sleep Early',
+    icon: Icons.nightlight_round_rounded,
+  ),
+  _HabitIconOption(
+    key: 'noSugar',
+    label: 'No Sugar',
+    icon: Icons.no_food_rounded,
+  ),
+  _HabitIconOption(key: 'steps', label: 'Steps', icon: Icons.hiking_rounded),
+  _HabitIconOption(
+    key: 'stretchBreak',
+    label: 'Break',
+    icon: Icons.timer_rounded,
   ),
 ];
 

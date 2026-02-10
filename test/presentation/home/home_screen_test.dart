@@ -826,6 +826,157 @@ void main() {
     });
 
     testWidgets(
+      'habit form icon picker uses icon-only paged grid and saves selected icon from another page',
+      (final WidgetTester tester) async {
+        tester.view.physicalSize = const Size(320, 640);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final _FakeHabitRepository repository = _FakeHabitRepository();
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+        );
+
+        await tester.tap(
+          find.byKey(const Key('home_create_first_habit_button')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('habit_form_icon_book')),
+          findsOneWidget,
+        );
+        expect(find.text('Read'), findsNothing);
+        expect(find.byTooltip('Read'), findsOneWidget);
+
+        final Finder nextPageFinder = find.byKey(
+          const Key('habit_form_icon_page_next'),
+        );
+        for (int i = 0; i < 5; i += 1) {
+          if (find
+              .byKey(const ValueKey<String>('habit_form_icon_sun'))
+              .evaluate()
+              .isNotEmpty) {
+            break;
+          }
+          final IconButton nextPageButton = tester.widget<IconButton>(
+            nextPageFinder,
+          );
+          if (nextPageButton.onPressed == null) {
+            break;
+          }
+          await tester.ensureVisible(nextPageFinder);
+          await tester.tap(nextPageFinder);
+          await tester.pumpAndSettle();
+        }
+        expect(
+          find.byKey(const ValueKey<String>('habit_form_icon_sun')),
+          findsOneWidget,
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('habit_form_icon_sun')),
+        );
+        await tester.enterText(
+          find.byKey(const Key('habit_form_name_field')),
+          'Morning Light',
+        );
+        await tester.tap(find.byKey(const Key('habit_form_submit_button')));
+        await tester.pumpAndSettle();
+
+        final List<Habit> habits = await repository.listActiveHabits();
+        final Habit createdHabit = habits.firstWhere(
+          (final Habit habit) => habit.name == 'Morning Light',
+        );
+        expect(createdHabit.iconKey, 'sun');
+      },
+    );
+
+    testWidgets(
+      'habit form icon picker remains stable on small screens with large text',
+      (final WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 780);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'Existing Habit',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+          textScaleFactor: 1.8,
+        );
+
+        await tester.tap(find.byKey(const Key('home_add_habit_fab')));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        final Finder nextPageFinder = find.byKey(
+          const Key('habit_form_icon_page_next'),
+        );
+        for (int i = 0; i < 5; i += 1) {
+          if (find
+              .byKey(const ValueKey<String>('habit_form_icon_sun'))
+              .evaluate()
+              .isNotEmpty) {
+            break;
+          }
+          final IconButton nextPageButton = tester.widget<IconButton>(
+            nextPageFinder,
+          );
+          if (nextPageButton.onPressed == null) {
+            break;
+          }
+          await tester.ensureVisible(nextPageFinder);
+          await tester.tap(nextPageFinder);
+          await tester.pumpAndSettle();
+        }
+        expect(
+          find.byKey(const ValueKey<String>('habit_form_icon_sun')),
+          findsOneWidget,
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('habit_form_icon_sun')),
+        );
+        await tester.enterText(
+          find.byKey(const Key('habit_form_name_field')),
+          'Accessibility Run',
+        );
+        await tester.tap(find.byKey(const Key('habit_form_submit_button')));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        final List<Habit> habits = await repository.listActiveHabits();
+        final Habit createdHabit = habits.firstWhere(
+          (final Habit habit) => habit.name == 'Accessibility Run',
+        );
+        expect(createdHabit.iconKey, 'sun');
+      },
+    );
+
+    testWidgets(
       'timezone shift does not rebucket historical local day keys in grid',
       (final WidgetTester tester) async {
         final _FakeHabitRepository repository = _FakeHabitRepository(
