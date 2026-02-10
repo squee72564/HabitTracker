@@ -58,7 +58,7 @@ This roadmap extends the shipped MVP with UX and control improvements discovered
    - Grid cells are interactive only for past or current local days; future days are read-only.
    - Positive mode: tap toggles completion for the selected `localDayKey` (add if absent, remove if present).
    - Negative mode: tap toggles a relapse marker for the selected `localDayKey` (add if absent, clear day marker if present).
-   - Positive edits are allowed from habit creation day through today.
+   - Positive edits are allowed for any past or current local day.
    - Negative edits are allowed from today back to 7 local days, matching the existing relapse backdate guardrail.
 4. Color strategy
    - Keep a curated expanded default palette with accessible contrast coverage across light and dark foregrounds.

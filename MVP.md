@@ -114,7 +114,7 @@ Using event history avoids edge-case bugs and lets you recompute streaks reliabl
 11. Grid Tap Editing
 12. Future grid days are non-editable.
 13. Positive mode grid taps toggle completion for that `localDayKey`.
-14. Positive grid edits are allowed from habit creation day through today.
+14. Positive grid edits are allowed for any past or current local day.
 15. Negative mode grid taps toggle relapse day markers for that `localDayKey`.
 16. Negative grid edits are limited to today and the previous 7 local days.
 17. Color Strategy
@@ -144,4 +144,4 @@ Using event history avoids edge-case bugs and lets you recompute streaks reliabl
 11. Tracking interaction expansion
 12. Negative quick action behavior is dual-mode: log relapse when no relapse exists, otherwise undo latest relapse.
 13. Grid day taps are first-class editing controls and preserve the hybrid time contract (`occurredAtUtc`, `localDayKey`, `tzOffsetMinutesAtEvent`).
-14. Grid guardrails: future days blocked for all modes; positive blocked before creation day; negative limited to today and prior 7 local days.
+14. Grid guardrails: future days blocked for all modes; positive allowed on past/current days; negative limited to today and prior 7 local days.

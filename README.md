@@ -13,7 +13,7 @@ Android-first Flutter habit tracker with offline-first, local-only storage.
   - Negative (`Relapse`): quick action logs relapse when no relapse exists, otherwise undoes the latest relapse only.
 - Monthly per-habit grid supports day taps:
   - Future days are read-only in both modes.
-  - Positive mode toggles completion from creation day through today.
+  - Positive mode toggles completion for any past or current local day.
   - Negative mode toggles relapse markers for today and the previous 7 local days.
 - Backdate flow for negative mode logs relapse up to 7 local days.
 - Reminder model:
