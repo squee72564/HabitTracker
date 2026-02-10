@@ -112,18 +112,18 @@ This roadmap is derived from `MVP.md` and is designed to be completed in small, 
 
 ## Stage 9: Release Preparation (Android MVP)
 
-- [ ] R9.1 Finalize app icon, app name, and Android package metadata.
-- [ ] R9.2 Add release build config and verify signed APK/AAB generation.
-- [ ] R9.3 Update `README.md` with install/run steps and MVP behavior notes.
-- [ ] R9.4 Add known limitations section (no sync, device clock trust model, local-only data).
-- [ ] R9.5 Create a pre-release checklist and complete final smoke test.
-- [ ] R9.6 Stage 9 exit check: Android release artifact is buildable and installable.
+- [x] R9.1 Finalize app icon, app name, and Android package metadata.
+- [x] R9.2 Add release build config and verify signed APK/AAB generation.
+- [x] R9.3 Update `README.md` with install/run steps and MVP behavior notes.
+- [x] R9.4 Add known limitations section (no sync, device clock trust model, local-only data).
+- [x] R9.5 Create a pre-release checklist and complete final smoke test.
+- [x] R9.6 Stage 9 exit check: Android release artifact is buildable and installable.
 
 ## MVP Acceptance Checklist (from `MVP.md`)
 
-- [ ] A1 User can create/edit/archive habits with name/icon/color/mode.
-- [ ] A2 User can log positive completion and negative relapse from home.
-- [ ] A3 Streaks update correctly after log/undo/backdate/timezone change.
-- [ ] A4 Monthly grid renders correctly for both modes using persisted day keys.
-- [ ] A5 Data persists across app restarts.
-- [ ] A6 App works on common Android screen sizes without layout breakage.
+- [x] A1 User can create/edit/archive habits with name/icon/color/mode.
+- [x] A2 User can log positive completion and negative relapse from home.
+- [x] A3 Streaks update correctly after log/undo/backdate/timezone change.
+- [x] A4 Monthly grid renders correctly for both modes using persisted day keys.
+- [x] A5 Data persists across app restarts.
+- [x] A6 App works on common Android screen sizes without layout breakage.
