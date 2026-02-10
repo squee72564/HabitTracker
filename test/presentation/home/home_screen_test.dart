@@ -585,20 +585,205 @@ void main() {
       );
     });
   });
+
+  group('HomeScreen Stage 7 settings + reminders flows', () {
+    testWidgets('week start setting applies globally to grid headers', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeAppSettingsRepository appSettingsRepository =
+          _FakeAppSettingsRepository();
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        appSettingsRepository: appSettingsRepository,
+        clock: () => DateTime(2026, 2, 15, 9),
+      );
+
+      Text firstWeekday = tester.widget<Text>(
+        find.byKey(const ValueKey<String>('habit_grid_weekday_habit-1_0')),
+      );
+      expect(firstWeekday.data, 'M');
+
+      await tester.tap(find.byKey(const Key('home_open_settings_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('settings_week_start_switch')));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      firstWeekday = tester.widget<Text>(
+        find.byKey(const ValueKey<String>('habit_grid_weekday_habit-1_0')),
+      );
+      expect(firstWeekday.data, 'S');
+    });
+
+    testWidgets('time format toggle updates reminder labels', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitReminderRepository reminderRepository =
+          _FakeHabitReminderRepository(
+            seedReminders: <HabitReminder>[
+              HabitReminder(
+                habitId: 'habit-1',
+                isEnabled: true,
+                reminderTimeMinutes: 13 * 60 + 5,
+              ),
+            ],
+          );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        habitReminderRepository: reminderRepository,
+      );
+
+      await tester.tap(find.byKey(const Key('home_open_settings_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Daily at 1:05 PM'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('settings_time_format_switch')));
+      await tester.pumpAndSettle();
+      expect(find.text('Daily at 13:05'), findsOneWidget);
+    });
+
+    testWidgets('enabling reminder requests permission and schedules', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeReminderNotificationScheduler notificationScheduler =
+          _FakeReminderNotificationScheduler()
+            ..notificationsAllowed = false
+            ..grantPermissionOnRequest = true;
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        notificationScheduler: notificationScheduler,
+      );
+
+      await tester.tap(find.byKey(const Key('home_open_settings_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('settings_reminder_toggle_habit-1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(notificationScheduler.permissionRequestCount, 1);
+      expect(notificationScheduler.scheduledMinutesByHabitId['habit-1'], 1200);
+      expect(find.text('Daily at 8:00 PM'), findsOneWidget);
+    });
+
+    testWidgets('permission denial shows fallback and keeps reminder off', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeReminderNotificationScheduler notificationScheduler =
+          _FakeReminderNotificationScheduler()
+            ..notificationsAllowed = false
+            ..grantPermissionOnRequest = false;
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        notificationScheduler: notificationScheduler,
+      );
+
+      await tester.tap(find.byKey(const Key('home_open_settings_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('settings_reminder_toggle_habit-1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('settings_permission_fallback_dialog')),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      expect(notificationScheduler.scheduledMinutesByHabitId, isEmpty);
+      expect(find.text('Reminder off'), findsOneWidget);
+    });
+  });
 }
 
 Future<void> _pumpHomeScreen({
   required final WidgetTester tester,
   required final HabitRepository repository,
   required final HabitEventRepository eventRepository,
+  AppSettingsRepository? appSettingsRepository,
+  HabitReminderRepository? habitReminderRepository,
+  ReminderNotificationScheduler? notificationScheduler,
   DateTime Function()? clock,
 }) async {
+  final AppSettingsRepository resolvedAppSettingsRepository =
+      appSettingsRepository ?? _FakeAppSettingsRepository();
+  final HabitReminderRepository resolvedHabitReminderRepository =
+      habitReminderRepository ?? _FakeHabitReminderRepository();
+  final ReminderNotificationScheduler resolvedNotificationScheduler =
+      notificationScheduler ?? _FakeReminderNotificationScheduler();
+
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.light(),
       home: HomeScreen(
         habitRepository: repository,
         habitEventRepository: eventRepository,
+        appSettingsRepository: resolvedAppSettingsRepository,
+        habitReminderRepository: resolvedHabitReminderRepository,
+        notificationScheduler: resolvedNotificationScheduler,
         clock: clock ?? DateTime.now,
       ),
     ),
@@ -735,5 +920,94 @@ class _FakeHabitEventRepository implements HabitEventRepository {
   @override
   Future<void> deleteEventById(final String eventId) async {
     _eventsById.remove(eventId);
+  }
+}
+
+class _FakeAppSettingsRepository implements AppSettingsRepository {
+  _FakeAppSettingsRepository({final AppSettings? seedSettings})
+    : _settings = seedSettings ?? AppSettings.defaults;
+
+  AppSettings _settings;
+
+  @override
+  Future<AppSettings> loadSettings() async {
+    return _settings;
+  }
+
+  @override
+  Future<void> saveSettings(final AppSettings settings) async {
+    _settings = settings;
+  }
+}
+
+class _FakeHabitReminderRepository implements HabitReminderRepository {
+  _FakeHabitReminderRepository({
+    final Iterable<HabitReminder> seedReminders = const <HabitReminder>[],
+  }) {
+    for (final HabitReminder reminder in seedReminders) {
+      _remindersByHabitId[reminder.habitId] = reminder;
+    }
+  }
+
+  final Map<String, HabitReminder> _remindersByHabitId =
+      <String, HabitReminder>{};
+
+  @override
+  Future<void> deleteReminderByHabitId(final String habitId) async {
+    _remindersByHabitId.remove(habitId);
+  }
+
+  @override
+  Future<HabitReminder?> findReminderByHabitId(final String habitId) async {
+    return _remindersByHabitId[habitId];
+  }
+
+  @override
+  Future<List<HabitReminder>> listReminders() async {
+    return _remindersByHabitId.values.toList(growable: false);
+  }
+
+  @override
+  Future<void> saveReminder(final HabitReminder reminder) async {
+    _remindersByHabitId[reminder.habitId] = reminder;
+  }
+}
+
+class _FakeReminderNotificationScheduler
+    implements ReminderNotificationScheduler {
+  bool notificationsAllowed = true;
+  bool grantPermissionOnRequest = true;
+  int permissionRequestCount = 0;
+  final Map<String, int> scheduledMinutesByHabitId = <String, int>{};
+  final Set<String> cancelledHabitIds = <String>{};
+
+  @override
+  Future<bool> areNotificationsAllowed() async {
+    return notificationsAllowed;
+  }
+
+  @override
+  Future<void> cancelReminder({required final String habitId}) async {
+    cancelledHabitIds.add(habitId);
+    scheduledMinutesByHabitId.remove(habitId);
+  }
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<bool> requestNotificationsPermission() async {
+    permissionRequestCount += 1;
+    notificationsAllowed = grantPermissionOnRequest;
+    return grantPermissionOnRequest;
+  }
+
+  @override
+  Future<void> scheduleDailyReminder({
+    required final String habitId,
+    required final String habitName,
+    required final int reminderTimeMinutes,
+  }) async {
+    scheduledMinutesByHabitId[habitId] = reminderTimeMinutes;
   }
 }

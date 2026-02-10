@@ -63,6 +63,34 @@ class HabitModeConverter extends TypeConverter<HabitMode, String> {
   }
 }
 
+class AppWeekStartConverter extends TypeConverter<AppWeekStart, String> {
+  const AppWeekStartConverter();
+
+  @override
+  AppWeekStart fromSql(final String fromDb) {
+    return AppWeekStart.fromStorageValue(fromDb);
+  }
+
+  @override
+  String toSql(final AppWeekStart value) {
+    return value.storageValue;
+  }
+}
+
+class AppTimeFormatConverter extends TypeConverter<AppTimeFormat, String> {
+  const AppTimeFormatConverter();
+
+  @override
+  AppTimeFormat fromSql(final String fromDb) {
+    return AppTimeFormat.fromStorageValue(fromDb);
+  }
+
+  @override
+  String toSql(final AppTimeFormat value) {
+    return value.storageValue;
+  }
+}
+
 class HabitEventTypeConverter extends TypeConverter<HabitEventType, String> {
   const HabitEventTypeConverter();
 

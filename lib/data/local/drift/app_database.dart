@@ -1,18 +1,22 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:habit_tracker/data/local/drift/converters.dart';
+import 'package:habit_tracker/data/local/drift/tables/app_settings_table.dart';
 import 'package:habit_tracker/data/local/drift/tables/habit_events_table.dart';
+import 'package:habit_tracker/data/local/drift/tables/habit_reminders_table.dart';
 import 'package:habit_tracker/data/local/drift/tables/habits_table.dart';
 import 'package:habit_tracker/domain/domain.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: <Type>[Habits, HabitEvents])
+@DriftDatabase(
+  tables: <Type>[Habits, HabitEvents, AppSettingsTable, HabitReminders],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -23,6 +27,10 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (final Migrator migrator, final int from, final int to) async {
       if (from < 2) {
         await migrator.addColumn(habits, habits.note);
+      }
+      if (from < 3) {
+        await migrator.createTable(appSettingsTable);
+        await migrator.createTable(habitReminders);
       }
       await _createIndexes();
     },
@@ -51,6 +59,10 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_habits_active_query '
       'ON habits (archived_at_utc, created_at_utc);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_habit_reminders_enabled '
+      'ON habit_reminders (is_enabled);',
     );
   }
 }

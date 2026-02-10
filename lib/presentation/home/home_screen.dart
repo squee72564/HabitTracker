@@ -3,17 +3,24 @@ import 'package:flutter/services.dart';
 
 import 'package:habit_tracker/core/core.dart';
 import 'package:habit_tracker/domain/domain.dart';
+import 'package:habit_tracker/presentation/settings/settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     required this.habitRepository,
     required this.habitEventRepository,
+    required this.appSettingsRepository,
+    required this.habitReminderRepository,
+    required this.notificationScheduler,
     this.clock = _systemNow,
   });
 
   final HabitRepository habitRepository;
   final HabitEventRepository habitEventRepository;
+  final AppSettingsRepository appSettingsRepository;
+  final HabitReminderRepository habitReminderRepository;
+  final ReminderNotificationScheduler notificationScheduler;
   final DateTime Function() clock;
 
   @override
@@ -28,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, String> _streakLabelsByHabitId = <String, String>{};
   Map<String, List<HabitEvent>> _eventsByHabitId = <String, List<HabitEvent>>{};
   Set<String> _trackingHabitIds = <String>{};
+  AppSettings _appSettings = AppSettings.defaults;
   late DateTime _visibleMonth;
   bool _isLoading = true;
   String? _errorMessage;
@@ -47,16 +55,21 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final List<Habit> habits = await widget.habitRepository
+      final Future<List<Habit>> habitsFuture = widget.habitRepository
           .listActiveHabits();
+      final Future<AppSettings> appSettingsFuture = widget.appSettingsRepository
+          .loadSettings();
+      final List<Habit> habits = await habitsFuture;
       final DateTime nowLocal = widget.clock();
       final _TrackingLoadResult trackingLoadResult =
           await _loadTrackingForHabits(habits: habits, nowLocal: nowLocal);
+      final AppSettings appSettings = await appSettingsFuture;
       if (!mounted) {
         return;
       }
       setState(() {
         _habits = habits;
+        _appSettings = appSettings;
         _completedTodayHabitIds = trackingLoadResult.completedTodayHabitIds;
         _streakLabelsByHabitId = trackingLoadResult.streakLabelsByHabitId;
         _eventsByHabitId = trackingLoadResult.eventsByHabitId;
@@ -210,6 +223,25 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _visibleMonth = toMonthStart(widget.clock());
     });
+  }
+
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (final BuildContext context) {
+          return SettingsScreen(
+            habitRepository: widget.habitRepository,
+            appSettingsRepository: widget.appSettingsRepository,
+            habitReminderRepository: widget.habitReminderRepository,
+            notificationScheduler: widget.notificationScheduler,
+          );
+        },
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    await _loadHabits();
   }
 
   Future<void> _createHabit() async {
@@ -525,7 +557,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(final BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Habit Tracker')),
+      appBar: AppBar(
+        title: const Text('Habit Tracker'),
+        actions: <Widget>[
+          IconButton(
+            key: const Key('home_open_settings_button'),
+            onPressed: _openSettings,
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_rounded),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('home_add_habit_fab'),
         onPressed: _createHabit,
@@ -555,6 +597,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _visibleMonth.year == currentMonth.year &&
         _visibleMonth.month == currentMonth.month;
     final String todayLocalDayKey = toLocalDayKey(nowLocal);
+    final List<String> weekdayLabels = _weekdayLabelsForWeekStart(
+      _appSettings.weekStart,
+    );
 
     return Column(
       children: <Widget>[
@@ -598,7 +643,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   events: _eventsByHabitId[habit.id] ?? const <HabitEvent>[],
                   monthLocal: _visibleMonth,
                   referenceTodayLocalDayKey: todayLocalDayKey,
+                  weekStart: _appSettings.weekStart,
                 ),
+                weekdayLabels: weekdayLabels,
                 onQuickAction: () => _onQuickActionTap(habit),
                 onEdit: () => _editHabit(habit),
                 onBackdateRelapse: () => _promptBackdatedRelapse(habit),
@@ -881,6 +928,7 @@ class _HabitCard extends StatelessWidget {
     required this.isCompletedToday,
     required this.isTrackingActionInProgress,
     required this.monthlyCells,
+    required this.weekdayLabels,
     required this.onQuickAction,
     required this.onEdit,
     required this.onBackdateRelapse,
@@ -892,6 +940,7 @@ class _HabitCard extends StatelessWidget {
   final bool isCompletedToday;
   final bool isTrackingActionInProgress;
   final List<HabitMonthCell> monthlyCells;
+  final List<String> weekdayLabels;
   final Future<void> Function() onQuickAction;
   final Future<void> Function() onEdit;
   final Future<void> Function() onBackdateRelapse;
@@ -1045,6 +1094,7 @@ class _HabitCard extends StatelessWidget {
               cells: monthlyCells,
               mode: habit.mode,
               textColor: textColor,
+              weekdayLabels: weekdayLabels,
             ),
           ),
         ],
@@ -1059,12 +1109,14 @@ class _HabitMonthGrid extends StatelessWidget {
     required this.cells,
     required this.mode,
     required this.textColor,
+    required this.weekdayLabels,
   });
 
   final String habitId;
   final List<HabitMonthCell> cells;
   final HabitMode mode;
   final Color textColor;
+  final List<String> weekdayLabels;
 
   @override
   Widget build(final BuildContext context) {
@@ -1089,19 +1141,23 @@ class _HabitMonthGrid extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Row(
-              children: _weekdayLabels
-                  .map((final String label) {
-                    return Expanded(
-                      child: Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: textColor.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    );
-                  })
-                  .toList(growable: false),
+              children: List<Widget>.generate(weekdayLabels.length, (
+                final int index,
+              ) {
+                final String label = weekdayLabels[index];
+                return Expanded(
+                  child: Text(
+                    label,
+                    key: ValueKey<String>(
+                      'habit_grid_weekday_${habitId}_$index',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: textColor.withValues(alpha: 0.7),
+                    ),
+                  ),
+                );
+              }),
             ),
             const SizedBox(height: AppSpacing.xs),
             Wrap(
@@ -1729,7 +1785,24 @@ const List<String> _habitColorHexOptions = <String>[
   '#5D4037',
 ];
 
-const List<String> _weekdayLabels = <String>['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const List<String> _mondayWeekdayLabels = <String>[
+  'M',
+  'T',
+  'W',
+  'T',
+  'F',
+  'S',
+  'S',
+];
+const List<String> _sundayWeekdayLabels = <String>[
+  'S',
+  'M',
+  'T',
+  'W',
+  'T',
+  'F',
+  'S',
+];
 
 final Map<String, IconData> _habitIconByKey = <String, IconData>{
   for (final _HabitIconOption option in _habitIconOptions)
@@ -1779,3 +1852,10 @@ String _formatBackdateDateLabel(final DateTime localDate) {
 }
 
 DateTime _systemNow() => DateTime.now();
+
+List<String> _weekdayLabelsForWeekStart(final AppWeekStart weekStart) {
+  return switch (weekStart) {
+    AppWeekStart.monday => _mondayWeekdayLabels,
+    AppWeekStart.sunday => _sundayWeekdayLabels,
+  };
+}

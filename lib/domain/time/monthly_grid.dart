@@ -1,4 +1,5 @@
 import 'package:habit_tracker/domain/entities/habit_event.dart';
+import 'package:habit_tracker/domain/value_objects/app_week_start.dart';
 import 'package:habit_tracker/domain/value_objects/habit_event_type.dart';
 import 'package:habit_tracker/domain/value_objects/habit_mode.dart';
 
@@ -40,10 +41,14 @@ List<HabitMonthCell> buildHabitMonthCells({
   required final Iterable<HabitEvent> events,
   required final DateTime monthLocal,
   required final String referenceTodayLocalDayKey,
+  final AppWeekStart weekStart = AppWeekStart.monday,
 }) {
   final DateTime monthStart = toMonthStart(monthLocal);
   final DateTime todayDate = _parseLocalDayKey(referenceTodayLocalDayKey);
-  final DateTime gridStart = _gridStartForMonth(monthStart);
+  final DateTime gridStart = _gridStartForMonth(
+    monthStart: monthStart,
+    weekStart: weekStart,
+  );
   final Set<String> completeDayKeys = events
       .where(
         (final HabitEvent event) => event.eventType == HabitEventType.complete,
@@ -107,8 +112,15 @@ List<HabitMonthCell> buildHabitMonthCells({
   });
 }
 
-DateTime _gridStartForMonth(final DateTime monthStart) {
-  final int leadingDays = (monthStart.weekday - DateTime.monday) % 7;
+DateTime _gridStartForMonth({
+  required final DateTime monthStart,
+  required final AppWeekStart weekStart,
+}) {
+  final int firstDay = switch (weekStart) {
+    AppWeekStart.monday => DateTime.monday,
+    AppWeekStart.sunday => DateTime.sunday,
+  };
+  final int leadingDays = (monthStart.weekday - firstDay + 7) % 7;
   return monthStart.subtract(Duration(days: leadingDays));
 }
 

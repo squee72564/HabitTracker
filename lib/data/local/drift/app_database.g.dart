@@ -1014,16 +1014,573 @@ class HabitEventsCompanion extends UpdateCompanion<HabitEventRecord> {
   }
 }
 
+class $AppSettingsTableTable extends AppSettingsTable
+    with TableInfo<$AppSettingsTableTable, AppSettingsRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppSettingsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _singletonIdMeta = const VerificationMeta(
+    'singletonId',
+  );
+  @override
+  late final GeneratedColumn<int> singletonId = GeneratedColumn<int>(
+    'singleton_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    clientDefault: () => 1,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<AppWeekStart, String> weekStart =
+      GeneratedColumn<String>(
+        'week_start',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('monday'),
+      ).withConverter<AppWeekStart>($AppSettingsTableTable.$converterweekStart);
+  @override
+  late final GeneratedColumnWithTypeConverter<AppTimeFormat, String>
+  timeFormat = GeneratedColumn<String>(
+    'time_format',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('12h'),
+  ).withConverter<AppTimeFormat>($AppSettingsTableTable.$convertertimeFormat);
+  @override
+  List<GeneratedColumn> get $columns => [singletonId, weekStart, timeFormat];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_settings_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppSettingsRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('singleton_id')) {
+      context.handle(
+        _singletonIdMeta,
+        singletonId.isAcceptableOrUnknown(
+          data['singleton_id']!,
+          _singletonIdMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {singletonId};
+  @override
+  AppSettingsRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppSettingsRow(
+      singletonId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}singleton_id'],
+      )!,
+      weekStart: $AppSettingsTableTable.$converterweekStart.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}week_start'],
+        )!,
+      ),
+      timeFormat: $AppSettingsTableTable.$convertertimeFormat.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}time_format'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $AppSettingsTableTable createAlias(String alias) {
+    return $AppSettingsTableTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<AppWeekStart, String> $converterweekStart =
+      const AppWeekStartConverter();
+  static TypeConverter<AppTimeFormat, String> $convertertimeFormat =
+      const AppTimeFormatConverter();
+}
+
+class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
+  final int singletonId;
+  final AppWeekStart weekStart;
+  final AppTimeFormat timeFormat;
+  const AppSettingsRow({
+    required this.singletonId,
+    required this.weekStart,
+    required this.timeFormat,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['singleton_id'] = Variable<int>(singletonId);
+    {
+      map['week_start'] = Variable<String>(
+        $AppSettingsTableTable.$converterweekStart.toSql(weekStart),
+      );
+    }
+    {
+      map['time_format'] = Variable<String>(
+        $AppSettingsTableTable.$convertertimeFormat.toSql(timeFormat),
+      );
+    }
+    return map;
+  }
+
+  AppSettingsTableCompanion toCompanion(bool nullToAbsent) {
+    return AppSettingsTableCompanion(
+      singletonId: Value(singletonId),
+      weekStart: Value(weekStart),
+      timeFormat: Value(timeFormat),
+    );
+  }
+
+  factory AppSettingsRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppSettingsRow(
+      singletonId: serializer.fromJson<int>(json['singletonId']),
+      weekStart: serializer.fromJson<AppWeekStart>(json['weekStart']),
+      timeFormat: serializer.fromJson<AppTimeFormat>(json['timeFormat']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'singletonId': serializer.toJson<int>(singletonId),
+      'weekStart': serializer.toJson<AppWeekStart>(weekStart),
+      'timeFormat': serializer.toJson<AppTimeFormat>(timeFormat),
+    };
+  }
+
+  AppSettingsRow copyWith({
+    int? singletonId,
+    AppWeekStart? weekStart,
+    AppTimeFormat? timeFormat,
+  }) => AppSettingsRow(
+    singletonId: singletonId ?? this.singletonId,
+    weekStart: weekStart ?? this.weekStart,
+    timeFormat: timeFormat ?? this.timeFormat,
+  );
+  AppSettingsRow copyWithCompanion(AppSettingsTableCompanion data) {
+    return AppSettingsRow(
+      singletonId: data.singletonId.present
+          ? data.singletonId.value
+          : this.singletonId,
+      weekStart: data.weekStart.present ? data.weekStart.value : this.weekStart,
+      timeFormat: data.timeFormat.present
+          ? data.timeFormat.value
+          : this.timeFormat,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppSettingsRow(')
+          ..write('singletonId: $singletonId, ')
+          ..write('weekStart: $weekStart, ')
+          ..write('timeFormat: $timeFormat')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(singletonId, weekStart, timeFormat);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppSettingsRow &&
+          other.singletonId == this.singletonId &&
+          other.weekStart == this.weekStart &&
+          other.timeFormat == this.timeFormat);
+}
+
+class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsRow> {
+  final Value<int> singletonId;
+  final Value<AppWeekStart> weekStart;
+  final Value<AppTimeFormat> timeFormat;
+  const AppSettingsTableCompanion({
+    this.singletonId = const Value.absent(),
+    this.weekStart = const Value.absent(),
+    this.timeFormat = const Value.absent(),
+  });
+  AppSettingsTableCompanion.insert({
+    this.singletonId = const Value.absent(),
+    this.weekStart = const Value.absent(),
+    this.timeFormat = const Value.absent(),
+  });
+  static Insertable<AppSettingsRow> custom({
+    Expression<int>? singletonId,
+    Expression<String>? weekStart,
+    Expression<String>? timeFormat,
+  }) {
+    return RawValuesInsertable({
+      if (singletonId != null) 'singleton_id': singletonId,
+      if (weekStart != null) 'week_start': weekStart,
+      if (timeFormat != null) 'time_format': timeFormat,
+    });
+  }
+
+  AppSettingsTableCompanion copyWith({
+    Value<int>? singletonId,
+    Value<AppWeekStart>? weekStart,
+    Value<AppTimeFormat>? timeFormat,
+  }) {
+    return AppSettingsTableCompanion(
+      singletonId: singletonId ?? this.singletonId,
+      weekStart: weekStart ?? this.weekStart,
+      timeFormat: timeFormat ?? this.timeFormat,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (singletonId.present) {
+      map['singleton_id'] = Variable<int>(singletonId.value);
+    }
+    if (weekStart.present) {
+      map['week_start'] = Variable<String>(
+        $AppSettingsTableTable.$converterweekStart.toSql(weekStart.value),
+      );
+    }
+    if (timeFormat.present) {
+      map['time_format'] = Variable<String>(
+        $AppSettingsTableTable.$convertertimeFormat.toSql(timeFormat.value),
+      );
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppSettingsTableCompanion(')
+          ..write('singletonId: $singletonId, ')
+          ..write('weekStart: $weekStart, ')
+          ..write('timeFormat: $timeFormat')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $HabitRemindersTable extends HabitReminders
+    with TableInfo<$HabitRemindersTable, HabitReminderRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HabitRemindersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _habitIdMeta = const VerificationMeta(
+    'habitId',
+  );
+  @override
+  late final GeneratedColumn<String> habitId = GeneratedColumn<String>(
+    'habit_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES habits (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _isEnabledMeta = const VerificationMeta(
+    'isEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> isEnabled = GeneratedColumn<bool>(
+    'is_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _reminderTimeMinutesMeta =
+      const VerificationMeta('reminderTimeMinutes');
+  @override
+  late final GeneratedColumn<int> reminderTimeMinutes = GeneratedColumn<int>(
+    'reminder_time_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1200),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    habitId,
+    isEnabled,
+    reminderTimeMinutes,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'habit_reminders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<HabitReminderRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('habit_id')) {
+      context.handle(
+        _habitIdMeta,
+        habitId.isAcceptableOrUnknown(data['habit_id']!, _habitIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_habitIdMeta);
+    }
+    if (data.containsKey('is_enabled')) {
+      context.handle(
+        _isEnabledMeta,
+        isEnabled.isAcceptableOrUnknown(data['is_enabled']!, _isEnabledMeta),
+      );
+    }
+    if (data.containsKey('reminder_time_minutes')) {
+      context.handle(
+        _reminderTimeMinutesMeta,
+        reminderTimeMinutes.isAcceptableOrUnknown(
+          data['reminder_time_minutes']!,
+          _reminderTimeMinutesMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {habitId};
+  @override
+  HabitReminderRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HabitReminderRow(
+      habitId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}habit_id'],
+      )!,
+      isEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_enabled'],
+      )!,
+      reminderTimeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_time_minutes'],
+      )!,
+    );
+  }
+
+  @override
+  $HabitRemindersTable createAlias(String alias) {
+    return $HabitRemindersTable(attachedDatabase, alias);
+  }
+}
+
+class HabitReminderRow extends DataClass
+    implements Insertable<HabitReminderRow> {
+  final String habitId;
+  final bool isEnabled;
+  final int reminderTimeMinutes;
+  const HabitReminderRow({
+    required this.habitId,
+    required this.isEnabled,
+    required this.reminderTimeMinutes,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['habit_id'] = Variable<String>(habitId);
+    map['is_enabled'] = Variable<bool>(isEnabled);
+    map['reminder_time_minutes'] = Variable<int>(reminderTimeMinutes);
+    return map;
+  }
+
+  HabitRemindersCompanion toCompanion(bool nullToAbsent) {
+    return HabitRemindersCompanion(
+      habitId: Value(habitId),
+      isEnabled: Value(isEnabled),
+      reminderTimeMinutes: Value(reminderTimeMinutes),
+    );
+  }
+
+  factory HabitReminderRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HabitReminderRow(
+      habitId: serializer.fromJson<String>(json['habitId']),
+      isEnabled: serializer.fromJson<bool>(json['isEnabled']),
+      reminderTimeMinutes: serializer.fromJson<int>(
+        json['reminderTimeMinutes'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'habitId': serializer.toJson<String>(habitId),
+      'isEnabled': serializer.toJson<bool>(isEnabled),
+      'reminderTimeMinutes': serializer.toJson<int>(reminderTimeMinutes),
+    };
+  }
+
+  HabitReminderRow copyWith({
+    String? habitId,
+    bool? isEnabled,
+    int? reminderTimeMinutes,
+  }) => HabitReminderRow(
+    habitId: habitId ?? this.habitId,
+    isEnabled: isEnabled ?? this.isEnabled,
+    reminderTimeMinutes: reminderTimeMinutes ?? this.reminderTimeMinutes,
+  );
+  HabitReminderRow copyWithCompanion(HabitRemindersCompanion data) {
+    return HabitReminderRow(
+      habitId: data.habitId.present ? data.habitId.value : this.habitId,
+      isEnabled: data.isEnabled.present ? data.isEnabled.value : this.isEnabled,
+      reminderTimeMinutes: data.reminderTimeMinutes.present
+          ? data.reminderTimeMinutes.value
+          : this.reminderTimeMinutes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HabitReminderRow(')
+          ..write('habitId: $habitId, ')
+          ..write('isEnabled: $isEnabled, ')
+          ..write('reminderTimeMinutes: $reminderTimeMinutes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(habitId, isEnabled, reminderTimeMinutes);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HabitReminderRow &&
+          other.habitId == this.habitId &&
+          other.isEnabled == this.isEnabled &&
+          other.reminderTimeMinutes == this.reminderTimeMinutes);
+}
+
+class HabitRemindersCompanion extends UpdateCompanion<HabitReminderRow> {
+  final Value<String> habitId;
+  final Value<bool> isEnabled;
+  final Value<int> reminderTimeMinutes;
+  final Value<int> rowid;
+  const HabitRemindersCompanion({
+    this.habitId = const Value.absent(),
+    this.isEnabled = const Value.absent(),
+    this.reminderTimeMinutes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  HabitRemindersCompanion.insert({
+    required String habitId,
+    this.isEnabled = const Value.absent(),
+    this.reminderTimeMinutes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : habitId = Value(habitId);
+  static Insertable<HabitReminderRow> custom({
+    Expression<String>? habitId,
+    Expression<bool>? isEnabled,
+    Expression<int>? reminderTimeMinutes,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (habitId != null) 'habit_id': habitId,
+      if (isEnabled != null) 'is_enabled': isEnabled,
+      if (reminderTimeMinutes != null)
+        'reminder_time_minutes': reminderTimeMinutes,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  HabitRemindersCompanion copyWith({
+    Value<String>? habitId,
+    Value<bool>? isEnabled,
+    Value<int>? reminderTimeMinutes,
+    Value<int>? rowid,
+  }) {
+    return HabitRemindersCompanion(
+      habitId: habitId ?? this.habitId,
+      isEnabled: isEnabled ?? this.isEnabled,
+      reminderTimeMinutes: reminderTimeMinutes ?? this.reminderTimeMinutes,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (habitId.present) {
+      map['habit_id'] = Variable<String>(habitId.value);
+    }
+    if (isEnabled.present) {
+      map['is_enabled'] = Variable<bool>(isEnabled.value);
+    }
+    if (reminderTimeMinutes.present) {
+      map['reminder_time_minutes'] = Variable<int>(reminderTimeMinutes.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HabitRemindersCompanion(')
+          ..write('habitId: $habitId, ')
+          ..write('isEnabled: $isEnabled, ')
+          ..write('reminderTimeMinutes: $reminderTimeMinutes, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $HabitsTable habits = $HabitsTable(this);
   late final $HabitEventsTable habitEvents = $HabitEventsTable(this);
+  late final $AppSettingsTableTable appSettingsTable = $AppSettingsTableTable(
+    this,
+  );
+  late final $HabitRemindersTable habitReminders = $HabitRemindersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [habits, habitEvents];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    habits,
+    habitEvents,
+    appSettingsTable,
+    habitReminders,
+  ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
     WritePropagation(
@@ -1032,6 +1589,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('habit_events', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'habits',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('habit_reminders', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -1078,6 +1642,24 @@ final class $$HabitsTableReferences
     ).filter((f) => f.habitId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_habitEventsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$HabitRemindersTable, List<HabitReminderRow>>
+  _habitRemindersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.habitReminders,
+    aliasName: $_aliasNameGenerator(db.habits.id, db.habitReminders.habitId),
+  );
+
+  $$HabitRemindersTableProcessedTableManager get habitRemindersRefs {
+    final manager = $$HabitRemindersTableTableManager(
+      $_db,
+      $_db.habitReminders,
+    ).filter((f) => f.habitId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_habitRemindersRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -1152,6 +1734,31 @@ class $$HabitsTableFilterComposer
           }) => $$HabitEventsTableFilterComposer(
             $db: $db,
             $table: $db.habitEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> habitRemindersRefs(
+    Expression<bool> Function($$HabitRemindersTableFilterComposer f) f,
+  ) {
+    final $$HabitRemindersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.habitReminders,
+      getReferencedColumn: (t) => t.habitId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitRemindersTableFilterComposer(
+            $db: $db,
+            $table: $db.habitReminders,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -1275,6 +1882,31 @@ class $$HabitsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> habitRemindersRefs<T extends Object>(
+    Expression<T> Function($$HabitRemindersTableAnnotationComposer a) f,
+  ) {
+    final $$HabitRemindersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.habitReminders,
+      getReferencedColumn: (t) => t.habitId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitRemindersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.habitReminders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$HabitsTableTableManager
@@ -1290,7 +1922,10 @@ class $$HabitsTableTableManager
           $$HabitsTableUpdateCompanionBuilder,
           (HabitRecord, $$HabitsTableReferences),
           HabitRecord,
-          PrefetchHooks Function({bool habitEventsRefs})
+          PrefetchHooks Function({
+            bool habitEventsRefs,
+            bool habitRemindersRefs,
+          })
         > {
   $$HabitsTableTableManager(_$AppDatabase db, $HabitsTable table)
     : super(
@@ -1353,35 +1988,63 @@ class $$HabitsTableTableManager
                     (e.readTable(table), $$HabitsTableReferences(db, table, e)),
               )
               .toList(),
-          prefetchHooksCallback: ({habitEventsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (habitEventsRefs) db.habitEvents],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (habitEventsRefs)
-                    await $_getPrefetchedData<
-                      HabitRecord,
-                      $HabitsTable,
-                      HabitEventRecord
-                    >(
-                      currentTable: table,
-                      referencedTable: $$HabitsTableReferences
-                          ._habitEventsRefsTable(db),
-                      managerFromTypedResult: (p0) => $$HabitsTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).habitEventsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.habitId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({habitEventsRefs = false, habitRemindersRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (habitEventsRefs) db.habitEvents,
+                    if (habitRemindersRefs) db.habitReminders,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (habitEventsRefs)
+                        await $_getPrefetchedData<
+                          HabitRecord,
+                          $HabitsTable,
+                          HabitEventRecord
+                        >(
+                          currentTable: table,
+                          referencedTable: $$HabitsTableReferences
+                              ._habitEventsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$HabitsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).habitEventsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.habitId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (habitRemindersRefs)
+                        await $_getPrefetchedData<
+                          HabitRecord,
+                          $HabitsTable,
+                          HabitReminderRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$HabitsTableReferences
+                              ._habitRemindersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$HabitsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).habitRemindersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.habitId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -1398,7 +2061,7 @@ typedef $$HabitsTableProcessedTableManager =
       $$HabitsTableUpdateCompanionBuilder,
       (HabitRecord, $$HabitsTableReferences),
       HabitRecord,
-      PrefetchHooks Function({bool habitEventsRefs})
+      PrefetchHooks Function({bool habitEventsRefs, bool habitRemindersRefs})
     >;
 typedef $$HabitEventsTableCreateCompanionBuilder =
     HabitEventsCompanion Function({
@@ -1766,6 +2429,465 @@ typedef $$HabitEventsTableProcessedTableManager =
       HabitEventRecord,
       PrefetchHooks Function({bool habitId})
     >;
+typedef $$AppSettingsTableTableCreateCompanionBuilder =
+    AppSettingsTableCompanion Function({
+      Value<int> singletonId,
+      Value<AppWeekStart> weekStart,
+      Value<AppTimeFormat> timeFormat,
+    });
+typedef $$AppSettingsTableTableUpdateCompanionBuilder =
+    AppSettingsTableCompanion Function({
+      Value<int> singletonId,
+      Value<AppWeekStart> weekStart,
+      Value<AppTimeFormat> timeFormat,
+    });
+
+class $$AppSettingsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $AppSettingsTableTable> {
+  $$AppSettingsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get singletonId => $composableBuilder(
+    column: $table.singletonId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<AppWeekStart, AppWeekStart, String>
+  get weekStart => $composableBuilder(
+    column: $table.weekStart,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<AppTimeFormat, AppTimeFormat, String>
+  get timeFormat => $composableBuilder(
+    column: $table.timeFormat,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+}
+
+class $$AppSettingsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $AppSettingsTableTable> {
+  $$AppSettingsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get singletonId => $composableBuilder(
+    column: $table.singletonId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get weekStart => $composableBuilder(
+    column: $table.weekStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get timeFormat => $composableBuilder(
+    column: $table.timeFormat,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppSettingsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AppSettingsTableTable> {
+  $$AppSettingsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get singletonId => $composableBuilder(
+    column: $table.singletonId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<AppWeekStart, String> get weekStart =>
+      $composableBuilder(column: $table.weekStart, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<AppTimeFormat, String> get timeFormat =>
+      $composableBuilder(
+        column: $table.timeFormat,
+        builder: (column) => column,
+      );
+}
+
+class $$AppSettingsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AppSettingsTableTable,
+          AppSettingsRow,
+          $$AppSettingsTableTableFilterComposer,
+          $$AppSettingsTableTableOrderingComposer,
+          $$AppSettingsTableTableAnnotationComposer,
+          $$AppSettingsTableTableCreateCompanionBuilder,
+          $$AppSettingsTableTableUpdateCompanionBuilder,
+          (
+            AppSettingsRow,
+            BaseReferences<
+              _$AppDatabase,
+              $AppSettingsTableTable,
+              AppSettingsRow
+            >,
+          ),
+          AppSettingsRow,
+          PrefetchHooks Function()
+        > {
+  $$AppSettingsTableTableTableManager(
+    _$AppDatabase db,
+    $AppSettingsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppSettingsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppSettingsTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppSettingsTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> singletonId = const Value.absent(),
+                Value<AppWeekStart> weekStart = const Value.absent(),
+                Value<AppTimeFormat> timeFormat = const Value.absent(),
+              }) => AppSettingsTableCompanion(
+                singletonId: singletonId,
+                weekStart: weekStart,
+                timeFormat: timeFormat,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> singletonId = const Value.absent(),
+                Value<AppWeekStart> weekStart = const Value.absent(),
+                Value<AppTimeFormat> timeFormat = const Value.absent(),
+              }) => AppSettingsTableCompanion.insert(
+                singletonId: singletonId,
+                weekStart: weekStart,
+                timeFormat: timeFormat,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppSettingsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AppSettingsTableTable,
+      AppSettingsRow,
+      $$AppSettingsTableTableFilterComposer,
+      $$AppSettingsTableTableOrderingComposer,
+      $$AppSettingsTableTableAnnotationComposer,
+      $$AppSettingsTableTableCreateCompanionBuilder,
+      $$AppSettingsTableTableUpdateCompanionBuilder,
+      (
+        AppSettingsRow,
+        BaseReferences<_$AppDatabase, $AppSettingsTableTable, AppSettingsRow>,
+      ),
+      AppSettingsRow,
+      PrefetchHooks Function()
+    >;
+typedef $$HabitRemindersTableCreateCompanionBuilder =
+    HabitRemindersCompanion Function({
+      required String habitId,
+      Value<bool> isEnabled,
+      Value<int> reminderTimeMinutes,
+      Value<int> rowid,
+    });
+typedef $$HabitRemindersTableUpdateCompanionBuilder =
+    HabitRemindersCompanion Function({
+      Value<String> habitId,
+      Value<bool> isEnabled,
+      Value<int> reminderTimeMinutes,
+      Value<int> rowid,
+    });
+
+final class $$HabitRemindersTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $HabitRemindersTable, HabitReminderRow> {
+  $$HabitRemindersTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $HabitsTable _habitIdTable(_$AppDatabase db) => db.habits.createAlias(
+    $_aliasNameGenerator(db.habitReminders.habitId, db.habits.id),
+  );
+
+  $$HabitsTableProcessedTableManager get habitId {
+    final $_column = $_itemColumn<String>('habit_id')!;
+
+    final manager = $$HabitsTableTableManager(
+      $_db,
+      $_db.habits,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_habitIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$HabitRemindersTableFilterComposer
+    extends Composer<_$AppDatabase, $HabitRemindersTable> {
+  $$HabitRemindersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<bool> get isEnabled => $composableBuilder(
+    column: $table.isEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderTimeMinutes => $composableBuilder(
+    column: $table.reminderTimeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$HabitsTableFilterComposer get habitId {
+    final $$HabitsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableFilterComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitRemindersTableOrderingComposer
+    extends Composer<_$AppDatabase, $HabitRemindersTable> {
+  $$HabitRemindersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<bool> get isEnabled => $composableBuilder(
+    column: $table.isEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reminderTimeMinutes => $composableBuilder(
+    column: $table.reminderTimeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$HabitsTableOrderingComposer get habitId {
+    final $$HabitsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableOrderingComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitRemindersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HabitRemindersTable> {
+  $$HabitRemindersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<bool> get isEnabled =>
+      $composableBuilder(column: $table.isEnabled, builder: (column) => column);
+
+  GeneratedColumn<int> get reminderTimeMinutes => $composableBuilder(
+    column: $table.reminderTimeMinutes,
+    builder: (column) => column,
+  );
+
+  $$HabitsTableAnnotationComposer get habitId {
+    final $$HabitsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitRemindersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $HabitRemindersTable,
+          HabitReminderRow,
+          $$HabitRemindersTableFilterComposer,
+          $$HabitRemindersTableOrderingComposer,
+          $$HabitRemindersTableAnnotationComposer,
+          $$HabitRemindersTableCreateCompanionBuilder,
+          $$HabitRemindersTableUpdateCompanionBuilder,
+          (HabitReminderRow, $$HabitRemindersTableReferences),
+          HabitReminderRow,
+          PrefetchHooks Function({bool habitId})
+        > {
+  $$HabitRemindersTableTableManager(
+    _$AppDatabase db,
+    $HabitRemindersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HabitRemindersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HabitRemindersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HabitRemindersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> habitId = const Value.absent(),
+                Value<bool> isEnabled = const Value.absent(),
+                Value<int> reminderTimeMinutes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HabitRemindersCompanion(
+                habitId: habitId,
+                isEnabled: isEnabled,
+                reminderTimeMinutes: reminderTimeMinutes,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String habitId,
+                Value<bool> isEnabled = const Value.absent(),
+                Value<int> reminderTimeMinutes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HabitRemindersCompanion.insert(
+                habitId: habitId,
+                isEnabled: isEnabled,
+                reminderTimeMinutes: reminderTimeMinutes,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$HabitRemindersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({habitId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (habitId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.habitId,
+                                referencedTable: $$HabitRemindersTableReferences
+                                    ._habitIdTable(db),
+                                referencedColumn:
+                                    $$HabitRemindersTableReferences
+                                        ._habitIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$HabitRemindersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $HabitRemindersTable,
+      HabitReminderRow,
+      $$HabitRemindersTableFilterComposer,
+      $$HabitRemindersTableOrderingComposer,
+      $$HabitRemindersTableAnnotationComposer,
+      $$HabitRemindersTableCreateCompanionBuilder,
+      $$HabitRemindersTableUpdateCompanionBuilder,
+      (HabitReminderRow, $$HabitRemindersTableReferences),
+      HabitReminderRow,
+      PrefetchHooks Function({bool habitId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1774,4 +2896,8 @@ class $AppDatabaseManager {
       $$HabitsTableTableManager(_db, _db.habits);
   $$HabitEventsTableTableManager get habitEvents =>
       $$HabitEventsTableTableManager(_db, _db.habitEvents);
+  $$AppSettingsTableTableTableManager get appSettingsTable =>
+      $$AppSettingsTableTableTableManager(_db, _db.appSettingsTable);
+  $$HabitRemindersTableTableManager get habitReminders =>
+      $$HabitRemindersTableTableManager(_db, _db.habitReminders);
 }
