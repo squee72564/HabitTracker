@@ -40,4 +40,14 @@ class DriftAppSettingsRepository implements AppSettingsRepository {
           mode: InsertMode.insertOrReplace,
         );
   }
+
+  @override
+  Future<void> resetAllData() async {
+    await _database.transaction(() async {
+      await _database.delete(_database.habitEvents).go();
+      await _database.delete(_database.habitReminders).go();
+      await _database.delete(_database.habits).go();
+      await _database.delete(_database.appSettingsTable).go();
+    });
+  }
 }

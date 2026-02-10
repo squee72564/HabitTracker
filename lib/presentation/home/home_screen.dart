@@ -230,22 +230,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openSettings() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (final BuildContext context) {
-          return SettingsScreen(
-            habitRepository: widget.habitRepository,
-            appSettingsRepository: widget.appSettingsRepository,
-            habitReminderRepository: widget.habitReminderRepository,
-            notificationScheduler: widget.notificationScheduler,
-          );
-        },
-      ),
-    );
+    final SettingsScreenResult? result = await Navigator.of(context)
+        .push<SettingsScreenResult>(
+          MaterialPageRoute<SettingsScreenResult>(
+            builder: (final BuildContext context) {
+              return SettingsScreen(
+                habitRepository: widget.habitRepository,
+                appSettingsRepository: widget.appSettingsRepository,
+                habitReminderRepository: widget.habitReminderRepository,
+                notificationScheduler: widget.notificationScheduler,
+              );
+            },
+          ),
+        );
     if (!mounted) {
       return;
     }
     await _loadHabits();
+    if (!mounted) {
+      return;
+    }
+    if (result == SettingsScreenResult.dataReset) {
+      _showSnackBar('All data reset.');
+    }
   }
 
   Future<void> _createHabit() async {
@@ -446,6 +453,15 @@ class _HomeScreenState extends State<HomeScreen> {
         habitId: habit.id,
         archivedAtUtc: DateTime.now().toUtc(),
       );
+      try {
+        await widget.notificationScheduler.cancelReminder(habitId: habit.id);
+      } on Object catch (error, stackTrace) {
+        _logger.error(
+          'Failed to cancel reminder after archiving habit ${habit.id}.',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
       await _loadHabits();
       if (!mounted) {
         return;

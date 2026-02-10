@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:habit_tracker/core/core.dart';
 import 'package:habit_tracker/domain/domain.dart';
+import 'package:habit_tracker/presentation/settings/archived_habits_screen.dart';
+
+enum SettingsScreenResult { dataReset }
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -30,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, HabitReminder> _remindersByHabitId = <String, HabitReminder>{};
   Set<String> _busyHabitIds = <String>{};
   bool _isLoading = true;
+  bool _isResettingData = false;
   String? _errorMessage;
 
   @override
@@ -129,15 +133,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : 'Calendar and grid weeks start on Sunday.',
                 ),
                 value: _settings.weekStart == AppWeekStart.monday,
-                onChanged: (final bool value) {
-                  _saveSettings(
-                    _settings.copyWith(
-                      weekStart: value
-                          ? AppWeekStart.monday
-                          : AppWeekStart.sunday,
-                    ),
-                  );
-                },
+                onChanged: _isResettingData
+                    ? null
+                    : (final bool value) {
+                        _saveSettings(
+                          _settings.copyWith(
+                            weekStart: value
+                                ? AppWeekStart.monday
+                                : AppWeekStart.sunday,
+                          ),
+                        );
+                      },
               ),
               const Divider(height: 1),
               SwitchListTile(
@@ -149,15 +155,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : 'Reminder times are shown as AM/PM.',
                 ),
                 value: _settings.timeFormat == AppTimeFormat.twentyFourHour,
-                onChanged: (final bool value) {
-                  _saveSettings(
-                    _settings.copyWith(
-                      timeFormat: value
-                          ? AppTimeFormat.twentyFourHour
-                          : AppTimeFormat.twelveHour,
-                    ),
-                  );
-                },
+                onChanged: _isResettingData
+                    ? null
+                    : (final bool value) {
+                        _saveSettings(
+                          _settings.copyWith(
+                            timeFormat: value
+                                ? AppTimeFormat.twentyFourHour
+                                : AppTimeFormat.twelveHour,
+                          ),
+                        );
+                      },
               ),
             ],
           ),
@@ -175,7 +183,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   : 'All reminders are paused. Per-habit preferences are preserved.',
             ),
             value: _settings.remindersEnabled,
-            onChanged: _toggleGlobalReminders,
+            onChanged: _isResettingData ? null : _toggleGlobalReminders,
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -193,6 +201,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
           )
         else
           ..._habits.map(_buildReminderCard),
+        const SizedBox(height: AppSpacing.lg),
+        Text('Data management', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        Card(
+          child: Column(
+            children: <Widget>[
+              ListTile(
+                key: const Key('settings_open_archived_button'),
+                leading: const Icon(Icons.archive_rounded),
+                title: const Text('Archived habits'),
+                subtitle: const Text(
+                  'Unarchive or permanently delete archived habits.',
+                ),
+                enabled: !_isResettingData,
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: _isResettingData ? null : _openArchivedHabits,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                key: const Key('settings_reset_all_data_button'),
+                leading: _isResettingData
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        Icons.delete_forever_rounded,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                title: Text(
+                  'Reset all data',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                subtitle: const Text(
+                  'Permanently deletes habits, events, reminders, and settings.',
+                ),
+                enabled: !_isResettingData,
+                onTap: _isResettingData ? null : _promptResetAllData,
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -221,7 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Switch(
                   key: ValueKey<String>('settings_reminder_toggle_${habit.id}'),
                   value: reminder.isEnabled,
-                  onChanged: isBusy
+                  onChanged: isBusy || _isResettingData
                       ? null
                       : (final bool enabled) =>
                             _toggleReminder(habit: habit, enabled: enabled),
@@ -240,7 +290,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 key: ValueKey<String>(
                   'settings_reminder_time_button_${habit.id}',
                 ),
-                onPressed: isBusy || !reminder.isEnabled
+                onPressed: isBusy || !reminder.isEnabled || _isResettingData
                     ? null
                     : () => _pickReminderTime(habit: habit),
                 icon: const Icon(Icons.schedule_rounded),
@@ -254,6 +304,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _saveSettings(final AppSettings updatedSettings) async {
+    if (_isResettingData) {
+      return;
+    }
     final AppSettings previous = _settings;
     setState(() {
       _settings = updatedSettings;
@@ -410,6 +463,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _toggleGlobalReminders(final bool enabled) async {
+    if (_isResettingData) {
+      return;
+    }
     final AppSettings previous = _settings;
     final AppSettings updated = _settings.copyWith(remindersEnabled: enabled);
     setState(() {
@@ -438,6 +494,180 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _settings = previous;
       });
       _showSnackBar('Could not update reminder settings.');
+    }
+  }
+
+  Future<void> _openArchivedHabits() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (final BuildContext context) {
+          return ArchivedHabitsScreen(
+            habitRepository: widget.habitRepository,
+            appSettingsRepository: widget.appSettingsRepository,
+            habitReminderRepository: widget.habitReminderRepository,
+            notificationScheduler: widget.notificationScheduler,
+          );
+        },
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    await _loadSettings();
+  }
+
+  Future<void> _promptResetAllData() async {
+    if (_isResettingData) {
+      return;
+    }
+    final bool confirmed = await _confirmResetAllData();
+    if (!confirmed || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _isResettingData = true;
+    });
+
+    try {
+      final List<HabitReminder> reminders = await widget.habitReminderRepository
+          .listReminders();
+      await widget.appSettingsRepository.resetAllData();
+      await _cancelReminderSchedulesBestEffort(
+        habitIds: reminders
+            .map((final HabitReminder reminder) => reminder.habitId)
+            .toSet(),
+      );
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isResettingData = false;
+      });
+      await showDialog<void>(
+        context: context,
+        builder: (final BuildContext context) {
+          return AlertDialog(
+            key: const Key('reset_data_success_dialog'),
+            title: const Text('Data reset complete'),
+            content: const Text('All local data has been permanently deleted.'),
+            actions: <Widget>[
+              FilledButton(
+                key: const Key('reset_data_success_ok_button'),
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop(SettingsScreenResult.dataReset);
+    } on Object catch (error, stackTrace) {
+      _logger.error(
+        'Failed to reset all data.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isResettingData = false;
+      });
+      _showSnackBar('Could not reset data.');
+    }
+  }
+
+  Future<bool> _confirmResetAllData() async {
+    String confirmationText = '';
+    bool canConfirm = false;
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (final BuildContext context) {
+        return StatefulBuilder(
+          builder:
+              (
+                final BuildContext context,
+                final void Function(void Function()) setDialogState,
+              ) {
+                return AlertDialog(
+                  title: const Text('Reset all data?'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text(
+                          'This action cannot be undone. Type RESET to confirm.',
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextField(
+                          key: const Key('reset_data_confirmation_field'),
+                          textInputAction: TextInputAction.done,
+                          decoration: const InputDecoration(
+                            labelText: 'Type RESET',
+                          ),
+                          onChanged: (final String value) {
+                            setDialogState(() {
+                              confirmationText = value.trim();
+                              canConfirm = confirmationText == 'RESET';
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      key: const Key('reset_data_cancel_button'),
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      key: const Key('reset_data_confirm_button'),
+                      onPressed: canConfirm
+                          ? () => Navigator.of(context).pop(true)
+                          : null,
+                      child: const Text('Reset'),
+                    ),
+                  ],
+                );
+              },
+        );
+      },
+    );
+
+    return confirmed ?? false;
+  }
+
+  Future<void> _cancelReminderSchedulesBestEffort({
+    required final Set<String> habitIds,
+  }) async {
+    try {
+      await widget.notificationScheduler.initialize();
+    } on Object catch (error, stackTrace) {
+      _logger.error(
+        'Failed to initialize notification scheduler during reset cleanup.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    for (final String habitId in habitIds) {
+      try {
+        await widget.notificationScheduler.cancelReminder(habitId: habitId);
+      } on Object catch (error, stackTrace) {
+        _logger.error(
+          'Failed to cancel reminder during reset cleanup for $habitId.',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
     }
   }
 

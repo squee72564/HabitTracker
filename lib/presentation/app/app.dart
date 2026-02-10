@@ -169,6 +169,11 @@ class _InMemoryAppSettingsRepository implements AppSettingsRepository {
   Future<void> saveSettings(final AppSettings settings) async {
     _settings = settings;
   }
+
+  @override
+  Future<void> resetAllData() async {
+    _settings = AppSettings.defaults;
+  }
 }
 
 class _InMemoryHabitReminderRepository implements HabitReminderRepository {

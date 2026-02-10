@@ -1103,6 +1103,338 @@ void main() {
         expect(reminder, isNull);
       },
     );
+
+    testWidgets('reset all data requires typed confirmation and wipes data', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository(
+            seedEvents: <HabitEvent>[
+              HabitEvent(
+                id: 'event-1',
+                habitId: 'habit-1',
+                eventType: HabitEventType.complete,
+                occurredAtUtc: DateTime.utc(2026, 2, 1, 9),
+                localDayKey: '2026-02-01',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+            ],
+          );
+      final _FakeAppSettingsRepository appSettingsRepository =
+          _FakeAppSettingsRepository(
+            seedSettings: const AppSettings(
+              weekStart: AppWeekStart.sunday,
+              remindersEnabled: false,
+            ),
+          );
+      final _FakeHabitReminderRepository reminderRepository =
+          _FakeHabitReminderRepository(
+            seedReminders: <HabitReminder>[
+              HabitReminder(
+                habitId: 'habit-1',
+                isEnabled: true,
+                reminderTimeMinutes: 21 * 60,
+              ),
+            ],
+          );
+      final _FakeReminderNotificationScheduler notificationScheduler =
+          _FakeReminderNotificationScheduler();
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        appSettingsRepository: appSettingsRepository,
+        habitReminderRepository: reminderRepository,
+        notificationScheduler: notificationScheduler,
+      );
+
+      await tester.tap(find.byKey(const Key('home_open_settings_button')));
+      await tester.pumpAndSettle();
+      final Finder resetAllDataButton = find.byKey(
+        const Key('settings_reset_all_data_button'),
+      );
+      await tester.scrollUntilVisible(resetAllDataButton, 200);
+      await tester.tap(resetAllDataButton);
+      await tester.pumpAndSettle();
+
+      FilledButton confirmButton = tester.widget<FilledButton>(
+        find.byKey(const Key('reset_data_confirm_button')),
+      );
+      expect(confirmButton.onPressed, isNull);
+
+      await tester.enterText(
+        find.byKey(const Key('reset_data_confirmation_field')),
+        'WRONG',
+      );
+      await tester.pumpAndSettle();
+      confirmButton = tester.widget<FilledButton>(
+        find.byKey(const Key('reset_data_confirm_button')),
+      );
+      expect(confirmButton.onPressed, isNull);
+
+      await tester.enterText(
+        find.byKey(const Key('reset_data_confirmation_field')),
+        'RESET',
+      );
+      await tester.pumpAndSettle();
+      confirmButton = tester.widget<FilledButton>(
+        find.byKey(const Key('reset_data_confirm_button')),
+      );
+      expect(confirmButton.onPressed, isNotNull);
+
+      await tester.tap(find.byKey(const Key('reset_data_confirm_button')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('reset_data_success_dialog')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('reset_data_success_ok_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No habits yet'), findsOneWidget);
+      expect(find.text('All data reset.'), findsOneWidget);
+      expect(await repository.listActiveHabits(), isEmpty);
+      expect(await eventRepository.listEventsForHabit('habit-1'), isEmpty);
+      expect(await reminderRepository.findReminderByHabitId('habit-1'), isNull);
+      expect(await appSettingsRepository.loadSettings(), AppSettings.defaults);
+      expect(
+        notificationScheduler.cancelledHabitIds.contains('habit-1'),
+        isTrue,
+      );
+    });
+
+    testWidgets('archived management can unarchive a habit', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-archived',
+            name: 'Journal',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            archivedAtUtc: DateTime.utc(2026, 2, 2, 8),
+          ),
+        ],
+      );
+      final _FakeAppSettingsRepository appSettingsRepository =
+          _FakeAppSettingsRepository();
+      final _FakeHabitReminderRepository reminderRepository =
+          _FakeHabitReminderRepository(
+            seedReminders: <HabitReminder>[
+              HabitReminder(
+                habitId: 'habit-archived',
+                isEnabled: true,
+                reminderTimeMinutes: 7 * 60 + 30,
+              ),
+            ],
+          );
+      final _FakeReminderNotificationScheduler notificationScheduler =
+          _FakeReminderNotificationScheduler();
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        appSettingsRepository: appSettingsRepository,
+        habitReminderRepository: reminderRepository,
+        notificationScheduler: notificationScheduler,
+      );
+
+      await tester.tap(find.byKey(const Key('home_open_settings_button')));
+      await tester.pumpAndSettle();
+      final Finder openArchivedButton = find.byKey(
+        const Key('settings_open_archived_button'),
+      );
+      await tester.dragUntilVisible(
+        openArchivedButton,
+        find.byType(ListView).first,
+        const Offset(0, -200),
+      );
+      final Offset openArchivedTapTarget =
+          tester.getTopLeft(openArchivedButton) + const Offset(16, 16);
+      await tester.tapAt(openArchivedTapTarget);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Journal'), findsOneWidget);
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('archived_unarchive_button_habit-archived'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('archived_habits_empty_state')),
+        findsOneWidget,
+      );
+      final Habit? unarchivedHabit = await repository.findHabitById(
+        'habit-archived',
+      );
+      expect(unarchivedHabit, isNotNull);
+      expect(unarchivedHabit!.archivedAtUtc, isNull);
+      expect(
+        notificationScheduler.scheduledMinutesByHabitId['habit-archived'],
+        7 * 60 + 30,
+      );
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Journal'), findsOneWidget);
+    });
+
+    testWidgets(
+      'archived management permanent delete requires typed habit name',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-archived',
+              name: 'Journal',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+              archivedAtUtc: DateTime.utc(2026, 2, 2, 8),
+            ),
+          ],
+        );
+        final _FakeHabitEventRepository eventRepository =
+            _FakeHabitEventRepository(
+              seedEvents: <HabitEvent>[
+                HabitEvent(
+                  id: 'event-1',
+                  habitId: 'habit-archived',
+                  eventType: HabitEventType.complete,
+                  occurredAtUtc: DateTime.utc(2026, 2, 1, 9),
+                  localDayKey: '2026-02-01',
+                  tzOffsetMinutesAtEvent: 0,
+                ),
+              ],
+            );
+        final _FakeHabitReminderRepository reminderRepository =
+            _FakeHabitReminderRepository(
+              seedReminders: <HabitReminder>[
+                HabitReminder(
+                  habitId: 'habit-archived',
+                  isEnabled: true,
+                  reminderTimeMinutes: 18 * 60,
+                ),
+              ],
+            );
+        final _FakeReminderNotificationScheduler notificationScheduler =
+            _FakeReminderNotificationScheduler();
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: eventRepository,
+          habitReminderRepository: reminderRepository,
+          notificationScheduler: notificationScheduler,
+        );
+
+        await tester.tap(find.byKey(const Key('home_open_settings_button')));
+        await tester.pumpAndSettle();
+        final Finder openArchivedButton = find.byKey(
+          const Key('settings_open_archived_button'),
+        );
+        await tester.dragUntilVisible(
+          openArchivedButton,
+          find.byType(ListView).first,
+          const Offset(0, -200),
+        );
+        final Offset openArchivedTapTarget =
+            tester.getTopLeft(openArchivedButton) + const Offset(16, 16);
+        await tester.tapAt(openArchivedTapTarget);
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('archived_delete_button_habit-archived'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        FilledButton deleteButton = tester.widget<FilledButton>(
+          find.byKey(
+            const ValueKey<String>(
+              'archived_delete_confirm_button_habit-archived',
+            ),
+          ),
+        );
+        expect(deleteButton.onPressed, isNull);
+
+        await tester.enterText(
+          find.byKey(
+            const ValueKey<String>(
+              'archived_delete_confirmation_field_habit-archived',
+            ),
+          ),
+          'journal',
+        );
+        await tester.pumpAndSettle();
+        deleteButton = tester.widget<FilledButton>(
+          find.byKey(
+            const ValueKey<String>(
+              'archived_delete_confirm_button_habit-archived',
+            ),
+          ),
+        );
+        expect(deleteButton.onPressed, isNull);
+
+        await tester.enterText(
+          find.byKey(
+            const ValueKey<String>(
+              'archived_delete_confirmation_field_habit-archived',
+            ),
+          ),
+          'Journal',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>(
+              'archived_delete_confirm_button_habit-archived',
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Journal'), findsNothing);
+        expect(await repository.findHabitById('habit-archived'), isNull);
+        expect(
+          await eventRepository.listEventsForHabit('habit-archived'),
+          isEmpty,
+        );
+        expect(
+          await reminderRepository.findReminderByHabitId('habit-archived'),
+          isNull,
+        );
+        expect(
+          notificationScheduler.cancelledHabitIds.contains('habit-archived'),
+          isTrue,
+        );
+      },
+    );
   });
 
   group('HomeScreen Stage 8 QA + accessibility flows', () {
@@ -1793,6 +2125,27 @@ Future<void> _pumpHomeScreen({
       habitReminderRepository ?? _FakeHabitReminderRepository();
   final ReminderNotificationScheduler resolvedNotificationScheduler =
       notificationScheduler ?? _FakeReminderNotificationScheduler();
+  if (repository is _FakeHabitRepository &&
+      eventRepository is _FakeHabitEventRepository &&
+      resolvedHabitReminderRepository is _FakeHabitReminderRepository) {
+    repository.deleteHabitHook = (final String habitId) async {
+      await eventRepository.deleteEventsForHabit(habitId);
+      await resolvedHabitReminderRepository.deleteReminderByHabitId(habitId);
+    };
+  }
+  if (resolvedAppSettingsRepository is _FakeAppSettingsRepository) {
+    resolvedAppSettingsRepository.resetAllDataHandler = () async {
+      if (repository is _FakeHabitRepository) {
+        await repository.clearAll();
+      }
+      if (eventRepository is _FakeHabitEventRepository) {
+        await eventRepository.clearAll();
+      }
+      if (resolvedHabitReminderRepository is _FakeHabitReminderRepository) {
+        await resolvedHabitReminderRepository.clearAll();
+      }
+    };
+  }
 
   Widget homeScreen = HomeScreen(
     habitRepository: repository,
@@ -1830,6 +2183,7 @@ class _FakeHabitRepository implements HabitRepository {
   }
 
   final Map<String, Habit> _habitsById = <String, Habit>{};
+  Future<void> Function(String habitId)? deleteHabitHook;
 
   @override
   Future<void> saveHabit(final Habit habit) async {
@@ -1878,6 +2232,23 @@ class _FakeHabitRepository implements HabitRepository {
       return;
     }
     _habitsById[habitId] = habit.copyWith(clearArchivedAtUtc: true);
+  }
+
+  @override
+  Future<void> deleteHabitPermanently(final String habitId) async {
+    final Habit? habit = _habitsById[habitId];
+    if (habit == null) {
+      return;
+    }
+    if (!habit.isArchived) {
+      throw StateError('Habit must be archived before permanent delete.');
+    }
+    _habitsById.remove(habitId);
+    await deleteHabitHook?.call(habitId);
+  }
+
+  Future<void> clearAll() async {
+    _habitsById.clear();
   }
 }
 
@@ -1952,6 +2323,16 @@ class _FakeHabitEventRepository implements HabitEventRepository {
   Future<void> deleteEventById(final String eventId) async {
     _eventsById.remove(eventId);
   }
+
+  Future<void> deleteEventsForHabit(final String habitId) async {
+    _eventsById.removeWhere(
+      (final String _, final HabitEvent event) => event.habitId == habitId,
+    );
+  }
+
+  Future<void> clearAll() async {
+    _eventsById.clear();
+  }
 }
 
 class _FakeAppSettingsRepository implements AppSettingsRepository {
@@ -1959,6 +2340,7 @@ class _FakeAppSettingsRepository implements AppSettingsRepository {
     : _settings = seedSettings ?? AppSettings.defaults;
 
   AppSettings _settings;
+  Future<void> Function()? resetAllDataHandler;
 
   @override
   Future<AppSettings> loadSettings() async {
@@ -1968,6 +2350,12 @@ class _FakeAppSettingsRepository implements AppSettingsRepository {
   @override
   Future<void> saveSettings(final AppSettings settings) async {
     _settings = settings;
+  }
+
+  @override
+  Future<void> resetAllData() async {
+    await resetAllDataHandler?.call();
+    _settings = AppSettings.defaults;
   }
 }
 
@@ -2001,6 +2389,10 @@ class _FakeHabitReminderRepository implements HabitReminderRepository {
   @override
   Future<void> saveReminder(final HabitReminder reminder) async {
     _remindersByHabitId[reminder.habitId] = reminder;
+  }
+
+  Future<void> clearAll() async {
+    _remindersByHabitId.clear();
   }
 }
 

@@ -25,6 +25,9 @@ class _EmptyHabitRepository implements HabitRepository {
   }) async {}
 
   @override
+  Future<void> deleteHabitPermanently(final String habitId) async {}
+
+  @override
   Future<Habit?> findHabitById(final String habitId) async {
     return null;
   }

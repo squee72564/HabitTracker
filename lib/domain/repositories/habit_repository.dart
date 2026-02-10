@@ -15,4 +15,6 @@ abstract interface class HabitRepository {
   });
 
   Future<void> unarchiveHabit(String habitId);
+
+  Future<void> deleteHabitPermanently(String habitId);
 }

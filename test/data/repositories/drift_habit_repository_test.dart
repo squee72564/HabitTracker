@@ -113,6 +113,47 @@ void main() {
       expect(loaded.colorHex, '#A1B2C3');
     },
   );
+
+  test('permanent delete removes archived habit and linked rows', () async {
+    final DriftHabitEventRepository eventRepository = DriftHabitEventRepository(
+      database,
+    );
+    final DriftHabitReminderRepository reminderRepository =
+        DriftHabitReminderRepository(database);
+    final Habit habit = _habit(
+      id: 'habit-1',
+      name: 'Read',
+      createdAtUtc: DateTime.utc(2026, 2, 10, 1),
+    );
+    await repository.saveHabit(habit);
+    await eventRepository.saveEvent(
+      HabitEvent(
+        id: 'event-1',
+        habitId: habit.id,
+        eventType: HabitEventType.complete,
+        occurredAtUtc: DateTime.utc(2026, 2, 10, 2),
+        localDayKey: '2026-02-10',
+        tzOffsetMinutesAtEvent: 0,
+      ),
+    );
+    await reminderRepository.saveReminder(
+      HabitReminder(
+        habitId: habit.id,
+        isEnabled: true,
+        reminderTimeMinutes: 21 * 60 + 15,
+      ),
+    );
+    await repository.archiveHabit(
+      habitId: habit.id,
+      archivedAtUtc: DateTime.utc(2026, 2, 11, 2),
+    );
+
+    await repository.deleteHabitPermanently(habit.id);
+
+    expect(await repository.findHabitById(habit.id), isNull);
+    expect(await eventRepository.listEventsForHabit(habit.id), isEmpty);
+    expect(await reminderRepository.findReminderByHabitId(habit.id), isNull);
+  });
 }
 
 Habit _habit({

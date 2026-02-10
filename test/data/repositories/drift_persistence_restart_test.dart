@@ -98,4 +98,81 @@ void main() {
     await secondOpen.close();
     await tempDir.delete(recursive: true);
   });
+
+  test('resetAllData wipes persisted rows across database reopen', () async {
+    final Directory tempDir = await Directory.systemTemp.createTemp(
+      'habit_tracker_stage3_reset_',
+    );
+    final File databaseFile = File('${tempDir.path}/habit_tracker.sqlite');
+
+    final AppDatabase firstOpen = AppDatabase(NativeDatabase(databaseFile));
+    final DriftHabitRepository firstHabitRepository = DriftHabitRepository(
+      firstOpen,
+    );
+    final DriftHabitEventRepository firstEventRepository =
+        DriftHabitEventRepository(firstOpen);
+    final DriftAppSettingsRepository firstSettingsRepository =
+        DriftAppSettingsRepository(firstOpen);
+    final DriftHabitReminderRepository firstReminderRepository =
+        DriftHabitReminderRepository(firstOpen);
+
+    final Habit habit = Habit(
+      id: 'habit-1',
+      name: 'Read',
+      iconKey: 'book',
+      colorHex: '#FFAA00',
+      mode: HabitMode.positive,
+      createdAtUtc: DateTime.utc(2026, 2, 10, 1),
+    );
+    await firstHabitRepository.saveHabit(habit);
+    await firstEventRepository.saveEvent(
+      HabitEvent(
+        id: 'event-1',
+        habitId: habit.id,
+        eventType: HabitEventType.complete,
+        occurredAtUtc: DateTime.utc(2026, 2, 10, 5),
+        localDayKey: '2026-02-10',
+        tzOffsetMinutesAtEvent: -300,
+      ),
+    );
+    await firstSettingsRepository.saveSettings(
+      const AppSettings(
+        weekStart: AppWeekStart.sunday,
+        timeFormat: AppTimeFormat.twentyFourHour,
+        remindersEnabled: false,
+      ),
+    );
+    await firstReminderRepository.saveReminder(
+      HabitReminder(
+        habitId: habit.id,
+        isEnabled: true,
+        reminderTimeMinutes: 21 * 60 + 15,
+      ),
+    );
+
+    await firstSettingsRepository.resetAllData();
+    await firstOpen.close();
+
+    final AppDatabase secondOpen = AppDatabase(NativeDatabase(databaseFile));
+    final DriftHabitRepository secondHabitRepository = DriftHabitRepository(
+      secondOpen,
+    );
+    final DriftHabitEventRepository secondEventRepository =
+        DriftHabitEventRepository(secondOpen);
+    final DriftAppSettingsRepository secondSettingsRepository =
+        DriftAppSettingsRepository(secondOpen);
+    final DriftHabitReminderRepository secondReminderRepository =
+        DriftHabitReminderRepository(secondOpen);
+
+    expect(await secondHabitRepository.listHabits(), isEmpty);
+    expect(await secondEventRepository.listEventsForHabit(habit.id), isEmpty);
+    expect(
+      await secondReminderRepository.findReminderByHabitId(habit.id),
+      isNull,
+    );
+    expect(await secondSettingsRepository.loadSettings(), AppSettings.defaults);
+
+    await secondOpen.close();
+    await tempDir.delete(recursive: true);
+  });
 }

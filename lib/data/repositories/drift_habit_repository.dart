@@ -70,6 +70,25 @@ class DriftHabitRepository implements HabitRepository {
           ..where((final tbl) => tbl.id.equals(habitId)))
         .write(const HabitsCompanion(archivedAtUtc: Value<DateTime?>(null)));
   }
+
+  @override
+  Future<void> deleteHabitPermanently(final String habitId) async {
+    final HabitRecord? existingHabit = await (_database.select(
+      _database.habits,
+    )..where((final tbl) => tbl.id.equals(habitId))).getSingleOrNull();
+    if (existingHabit == null) {
+      return;
+    }
+    if (existingHabit.archivedAtUtc == null) {
+      throw StateError('Habit must be archived before permanent delete.');
+    }
+
+    await _database.transaction(() async {
+      await (_database.delete(
+        _database.habits,
+      )..where((final tbl) => tbl.id.equals(habitId))).go();
+    });
+  }
 }
 
 HabitsCompanion _toHabitCompanion(final Habit habit) {
