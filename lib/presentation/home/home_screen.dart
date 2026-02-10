@@ -736,20 +736,26 @@ class _MonthNavigationBar extends StatelessWidget {
             tooltip: 'Next month',
             icon: const Icon(Icons.chevron_right_rounded),
           ),
-          if (isViewingCurrentMonth)
-            const Padding(
-              padding: EdgeInsets.only(left: AppSpacing.xs),
-              child: Chip(
-                key: Key('home_month_current_chip'),
-                label: Text('Current'),
+          const SizedBox(width: AppSpacing.xs),
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: isViewingCurrentMonth
+                    ? const Chip(
+                        key: Key('home_month_current_chip'),
+                        label: Text('Current'),
+                      )
+                    : TextButton(
+                        key: const Key('home_month_jump_current_button'),
+                        onPressed: onJumpToCurrentMonth,
+                        child: const Text('Go to current'),
+                      ),
               ),
-            )
-          else
-            TextButton(
-              key: const Key('home_month_jump_current_button'),
-              onPressed: onJumpToCurrentMonth,
-              child: const Text('Go to current'),
             ),
+          ),
         ],
       ),
     );
@@ -998,26 +1004,26 @@ class _HabitCard extends StatelessWidget {
               children: <Widget>[
                 Text(
                   modeLabel,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: textColor.withValues(alpha: 0.92),
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: textColor),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   currentSummary,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: textColor.withValues(alpha: 0.92),
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: textColor),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (habit.note != null && habit.note!.isNotEmpty)
                   Text(
                     habit.note!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: textColor.withValues(alpha: 0.85),
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: textColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
