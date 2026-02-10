@@ -758,6 +758,169 @@ void main() {
       expect(notificationScheduler.scheduledMinutesByHabitId, isEmpty);
       expect(find.text('Reminder off'), findsOneWidget);
     });
+
+    testWidgets('create form can enable and persist reminder', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository();
+      final _FakeHabitReminderRepository reminderRepository =
+          _FakeHabitReminderRepository();
+      final _FakeReminderNotificationScheduler notificationScheduler =
+          _FakeReminderNotificationScheduler()
+            ..notificationsAllowed = false
+            ..grantPermissionOnRequest = true;
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        habitReminderRepository: reminderRepository,
+        notificationScheduler: notificationScheduler,
+      );
+
+      await tester.tap(find.byKey(const Key('home_create_first_habit_button')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('habit_form_name_field')),
+        'Read Daily',
+      );
+      final Finder reminderToggleFinder = find.byKey(
+        const Key('habit_form_reminder_toggle'),
+      );
+      await tester.ensureVisible(reminderToggleFinder);
+      await tester.tap(reminderToggleFinder);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('habit_form_submit_button')));
+      await tester.pumpAndSettle();
+
+      final Habit createdHabit = (await repository.listActiveHabits()).single;
+      final HabitReminder? reminder = await reminderRepository
+          .findReminderByHabitId(createdHabit.id);
+      expect(notificationScheduler.permissionRequestCount, 1);
+      expect(reminder, isNotNull);
+      expect(reminder?.isEnabled, isTrue);
+      expect(reminder?.reminderTimeMinutes, 1200);
+      expect(
+        notificationScheduler.scheduledMinutesByHabitId[createdHabit.id],
+        1200,
+      );
+    });
+
+    testWidgets('edit form preserves existing reminder row when turned off', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitReminderRepository reminderRepository =
+          _FakeHabitReminderRepository(
+            seedReminders: <HabitReminder>[
+              HabitReminder(
+                habitId: 'habit-1',
+                isEnabled: true,
+                reminderTimeMinutes: 13 * 60 + 5,
+              ),
+            ],
+          );
+      final _FakeReminderNotificationScheduler notificationScheduler =
+          _FakeReminderNotificationScheduler();
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        habitReminderRepository: reminderRepository,
+        notificationScheduler: notificationScheduler,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_menu_habit-1')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit Habit'));
+      await tester.pumpAndSettle();
+
+      final SwitchListTile reminderToggle = tester.widget<SwitchListTile>(
+        find.byKey(const Key('habit_form_reminder_toggle')),
+      );
+      expect(reminderToggle.value, isTrue);
+      expect(find.text('Daily at 1:05 PM'), findsOneWidget);
+
+      final Finder reminderToggleFinder = find.byKey(
+        const Key('habit_form_reminder_toggle'),
+      );
+      await tester.ensureVisible(reminderToggleFinder);
+      await tester.tap(reminderToggleFinder);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('habit_form_submit_button')));
+      await tester.pumpAndSettle();
+
+      final HabitReminder? reminder = await reminderRepository
+          .findReminderByHabitId('habit-1');
+      expect(reminder, isNotNull);
+      expect(reminder?.isEnabled, isFalse);
+      expect(reminder?.reminderTimeMinutes, 13 * 60 + 5);
+      expect(
+        notificationScheduler.cancelledHabitIds.contains('habit-1'),
+        isTrue,
+      );
+    });
+
+    testWidgets(
+      'edit form without stored reminder keeps row absent when unchanged off',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'Read',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+        final _FakeHabitReminderRepository reminderRepository =
+            _FakeHabitReminderRepository();
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+          habitReminderRepository: reminderRepository,
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('habit_card_menu_habit-1')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Edit Habit'));
+        await tester.pumpAndSettle();
+
+        final SwitchListTile reminderToggle = tester.widget<SwitchListTile>(
+          find.byKey(const Key('habit_form_reminder_toggle')),
+        );
+        expect(reminderToggle.value, isFalse);
+        expect(find.text('Reminder off'), findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('habit_form_submit_button')));
+        await tester.pumpAndSettle();
+
+        final HabitReminder? reminder = await reminderRepository
+            .findReminderByHabitId('habit-1');
+        expect(reminder, isNull);
+      },
+    );
   });
 
   group('HomeScreen Stage 8 QA + accessibility flows', () {

@@ -30,6 +30,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const int _defaultReminderTimeMinutes = 1200;
+
   final AppLogger _logger = AppLogger.instance;
 
   List<Habit> _habits = <Habit>[];
@@ -247,11 +249,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _createHabit() async {
+    const _HabitFormInitialReminder initialReminder = _HabitFormInitialReminder(
+      isEnabled: false,
+      reminderTimeMinutes: _defaultReminderTimeMinutes,
+      hasStoredRow: false,
+    );
     final _HabitFormResult? result = await showDialog<_HabitFormResult>(
       context: context,
       builder: (final BuildContext context) {
         return _HabitFormDialog(
           existingHabitNames: _habits.map((final Habit h) => h.name),
+          initialReminder: initialReminder,
+          timeFormat: _appSettings.timeFormat,
+          notificationScheduler: widget.notificationScheduler,
         );
       },
     );
@@ -270,16 +280,42 @@ class _HomeScreenState extends State<HomeScreen> {
       createdAtUtc: DateTime.now().toUtc(),
     );
 
-    await _saveHabit(habit: habit, successMessage: 'Habit created.');
+    final bool habitSaved = await _saveHabit(
+      habit: habit,
+      successMessage: 'Habit created.',
+    );
+    if (!habitSaved) {
+      return;
+    }
+    await _saveHabitReminderFromForm(
+      habit: habit,
+      result: result,
+      keepDisabledReminderRow: false,
+    );
   }
 
   Future<void> _editHabit(final Habit habit) async {
+    final HabitReminder? existingReminder = await widget.habitReminderRepository
+        .findReminderByHabitId(habit.id);
+    if (!mounted) {
+      return;
+    }
+    final _HabitFormInitialReminder initialReminder = _HabitFormInitialReminder(
+      isEnabled: existingReminder?.isEnabled ?? false,
+      reminderTimeMinutes:
+          existingReminder?.reminderTimeMinutes ?? _defaultReminderTimeMinutes,
+      hasStoredRow: existingReminder != null,
+    );
+
     final _HabitFormResult? result = await showDialog<_HabitFormResult>(
       context: context,
       builder: (final BuildContext context) {
         return _HabitFormDialog(
           initialHabit: habit,
           existingHabitNames: _habits.map((final Habit h) => h.name),
+          initialReminder: initialReminder,
+          timeFormat: _appSettings.timeFormat,
+          notificationScheduler: widget.notificationScheduler,
         );
       },
     );
@@ -297,10 +333,21 @@ class _HomeScreenState extends State<HomeScreen> {
       clearNote: result.note == null,
     );
 
-    await _saveHabit(habit: updatedHabit, successMessage: 'Habit updated.');
+    final bool habitSaved = await _saveHabit(
+      habit: updatedHabit,
+      successMessage: 'Habit updated.',
+    );
+    if (!habitSaved) {
+      return;
+    }
+    await _saveHabitReminderFromForm(
+      habit: updatedHabit,
+      result: result,
+      keepDisabledReminderRow: initialReminder.hasStoredRow,
+    );
   }
 
-  Future<void> _saveHabit({
+  Future<bool> _saveHabit({
     required final Habit habit,
     required final String successMessage,
   }) async {
@@ -308,9 +355,10 @@ class _HomeScreenState extends State<HomeScreen> {
       await widget.habitRepository.saveHabit(habit);
       await _loadHabits();
       if (!mounted) {
-        return;
+        return true;
       }
       _showSnackBar(successMessage);
+      return true;
     } on Object catch (error, stackTrace) {
       _logger.error(
         'Failed to save habit ${habit.id}.',
@@ -318,9 +366,49 @@ class _HomeScreenState extends State<HomeScreen> {
         stackTrace: stackTrace,
       );
       if (!mounted) {
-        return;
+        return false;
       }
       _showSnackBar('Could not save habit.');
+      return false;
+    }
+  }
+
+  Future<void> _saveHabitReminderFromForm({
+    required final Habit habit,
+    required final _HabitFormResult result,
+    required final bool keepDisabledReminderRow,
+  }) async {
+    try {
+      final HabitReminder reminder = HabitReminder(
+        habitId: habit.id,
+        isEnabled: result.reminderEnabled,
+        reminderTimeMinutes: result.reminderTimeMinutes,
+      );
+      if (!result.reminderEnabled && !keepDisabledReminderRow) {
+        await widget.habitReminderRepository.deleteReminderByHabitId(habit.id);
+      } else {
+        await widget.habitReminderRepository.saveReminder(reminder);
+      }
+
+      if (result.reminderEnabled) {
+        await widget.notificationScheduler.scheduleDailyReminder(
+          habitId: habit.id,
+          habitName: habit.name,
+          reminderTimeMinutes: result.reminderTimeMinutes,
+        );
+      } else {
+        await widget.notificationScheduler.cancelReminder(habitId: habit.id);
+      }
+    } on Object catch (error, stackTrace) {
+      _logger.error(
+        'Failed to update reminder from habit form for habit ${habit.id}.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('Habit saved, but reminder settings could not be updated.');
     }
   }
 
@@ -1412,10 +1500,19 @@ class _BackdateRelapseDialogState extends State<_BackdateRelapseDialog> {
 }
 
 class _HabitFormDialog extends StatefulWidget {
-  const _HabitFormDialog({required this.existingHabitNames, this.initialHabit});
+  const _HabitFormDialog({
+    required this.existingHabitNames,
+    required this.initialReminder,
+    required this.timeFormat,
+    required this.notificationScheduler,
+    this.initialHabit,
+  });
 
   final Habit? initialHabit;
   final Iterable<String> existingHabitNames;
+  final _HabitFormInitialReminder initialReminder;
+  final AppTimeFormat timeFormat;
+  final ReminderNotificationScheduler notificationScheduler;
 
   @override
   State<_HabitFormDialog> createState() => _HabitFormDialogState();
@@ -1430,8 +1527,11 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
   late String _selectedIconKey;
   late String _selectedColorHex;
   late HabitMode _selectedMode;
+  late bool _isReminderEnabled;
+  late int _reminderTimeMinutes;
   int _iconPickerPage = 0;
   bool _didInitializeIconPickerPage = false;
+  bool _isUpdatingReminderPermission = false;
 
   bool get _isEditing => widget.initialHabit != null;
   bool get _isCustomColorSelected =>
@@ -1455,6 +1555,8 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
         : _habitIconOptions.first.key;
     _selectedColorHex = initialColorHex;
     _selectedMode = initialHabit?.mode ?? HabitMode.positive;
+    _isReminderEnabled = widget.initialReminder.isEnabled;
+    _reminderTimeMinutes = widget.initialReminder.reminderTimeMinutes;
   }
 
   @override
@@ -1608,6 +1710,36 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
                       .toList(growable: false),
                 ),
                 const SizedBox(height: AppSpacing.md),
+                Text('Reminder', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: AppSpacing.xs),
+                SwitchListTile(
+                  key: const Key('habit_form_reminder_toggle'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Daily reminder'),
+                  subtitle: Text(
+                    _isReminderEnabled
+                        ? 'Daily at ${_formatReminderTime(_reminderTimeMinutes)}'
+                        : 'Reminder off',
+                  ),
+                  value: _isReminderEnabled,
+                  onChanged: _isUpdatingReminderPermission
+                      ? null
+                      : _toggleReminder,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('habit_form_reminder_time_button'),
+                    onPressed:
+                        _isUpdatingReminderPermission || !_isReminderEnabled
+                        ? null
+                        : _pickReminderTime,
+                    icon: const Icon(Icons.schedule_rounded),
+                    label: const Text('Change time'),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 TextFormField(
                   key: const Key('habit_form_note_field'),
                   controller: _noteController,
@@ -1718,7 +1850,7 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
     return null;
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final FormState? formState = _formKey.currentState;
     if (formState == null || !formState.validate()) {
       return;
@@ -1736,8 +1868,99 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
         colorHex: normalizedColorHex,
         mode: _selectedMode,
         note: noteText.isEmpty ? null : noteText,
+        reminderEnabled: _isReminderEnabled,
+        reminderTimeMinutes: _reminderTimeMinutes,
       ),
     );
+  }
+
+  Future<void> _toggleReminder(final bool enabled) async {
+    if (!enabled) {
+      setState(() {
+        _isReminderEnabled = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isUpdatingReminderPermission = true;
+    });
+    final bool permissionGranted = await _ensurePermissionForReminders();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isUpdatingReminderPermission = false;
+      if (permissionGranted) {
+        _isReminderEnabled = true;
+      }
+    });
+  }
+
+  Future<void> _pickReminderTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: _reminderTimeMinutes ~/ 60,
+        minute: _reminderTimeMinutes % 60,
+      ),
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _reminderTimeMinutes = picked.hour * 60 + picked.minute;
+    });
+  }
+
+  Future<bool> _ensurePermissionForReminders() async {
+    final bool notificationsAllowed = await widget.notificationScheduler
+        .areNotificationsAllowed();
+    if (notificationsAllowed) {
+      return true;
+    }
+    final bool granted = await widget.notificationScheduler
+        .requestNotificationsPermission();
+    if (granted) {
+      return true;
+    }
+    if (!mounted) {
+      return false;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (final BuildContext context) {
+        return AlertDialog(
+          key: const Key('habit_form_permission_fallback_dialog'),
+          title: const Text('Notifications disabled'),
+          content: const Text(
+            'Enable notifications in Android system settings to use reminders.',
+          ),
+          actions: <Widget>[
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+    return false;
+  }
+
+  String _formatReminderTime(final int minutesSinceMidnight) {
+    final int hour = minutesSinceMidnight ~/ 60;
+    final int minute = minutesSinceMidnight % 60;
+    final String minuteText = minute.toString().padLeft(2, '0');
+
+    if (widget.timeFormat == AppTimeFormat.twentyFourHour) {
+      return '${hour.toString().padLeft(2, '0')}:$minuteText';
+    }
+
+    final bool isPm = hour >= 12;
+    final int hour12 = hour % 12 == 0 ? 12 : hour % 12;
+    final String period = isPm ? 'PM' : 'AM';
+    return '$hour12:$minuteText $period';
   }
 
   Future<void> _promptForCustomColor() async {
@@ -1976,6 +2199,8 @@ class _HabitFormResult {
     required this.colorHex,
     required this.mode,
     required this.note,
+    required this.reminderEnabled,
+    required this.reminderTimeMinutes,
   });
 
   final String name;
@@ -1983,6 +2208,20 @@ class _HabitFormResult {
   final String colorHex;
   final HabitMode mode;
   final String? note;
+  final bool reminderEnabled;
+  final int reminderTimeMinutes;
+}
+
+class _HabitFormInitialReminder {
+  const _HabitFormInitialReminder({
+    required this.isEnabled,
+    required this.reminderTimeMinutes,
+    required this.hasStoredRow,
+  });
+
+  final bool isEnabled;
+  final int reminderTimeMinutes;
+  final bool hasStoredRow;
 }
 
 class _HabitIconOption {
