@@ -751,12 +751,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (habit.mode == HabitMode.positive) {
-      final DateTime createdLocalDate = _dateOnly(habit.createdAtUtc.toLocal());
-      if (targetDate.isBefore(createdLocalDate)) {
-        return const _GridEditGuardResult.blocked(
-          'Cannot edit days before the habit was created.',
-        );
-      }
       return const _GridEditGuardResult.allowed();
     }
 

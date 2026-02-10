@@ -639,7 +639,7 @@ void main() {
     );
 
     testWidgets(
-      'grid edit guardrails block future/too-old days and enforce allowed windows',
+      'grid edit guardrails allow positive historical edits while blocking future and too-old negative days',
       (final WidgetTester tester) async {
         final _FakeHabitRepository repository = _FakeHabitRepository(
           seedHabits: <Habit>[
@@ -678,11 +678,12 @@ void main() {
         );
         await tester.ensureVisible(tapTarget);
         await tester.tap(tapTarget);
-        await tester.pump();
-        expect(
-          await eventRepository.listEventsForHabit('habit-positive'),
-          isEmpty,
-        );
+        await tester.pumpAndSettle();
+        List<HabitEvent> positiveEvents = await eventRepository
+            .listEventsForHabit('habit-positive');
+        expect(positiveEvents, hasLength(1));
+        expect(positiveEvents.single.localDayKey, '2026-02-05');
+        expect(positiveEvents.single.eventType, HabitEventType.complete);
 
         tapTarget = find.byKey(
           const ValueKey<String>(
@@ -692,10 +693,10 @@ void main() {
         await tester.ensureVisible(tapTarget);
         await tester.tap(tapTarget);
         await tester.pump();
-        expect(
-          await eventRepository.listEventsForHabit('habit-positive'),
-          isEmpty,
+        positiveEvents = await eventRepository.listEventsForHabit(
+          'habit-positive',
         );
+        expect(positiveEvents, hasLength(1));
 
         tapTarget = find.byKey(
           const ValueKey<String>(
