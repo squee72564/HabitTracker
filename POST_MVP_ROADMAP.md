@@ -119,17 +119,17 @@ This roadmap extends the shipped MVP with UX and control improvements discovered
 
 ## Stage P4: Tracking Interaction Expansion (Undo Relapse + Grid Day Editing)
 
-- [ ] P4.1 Add undo support for negative-mode relapse tracking per approved contract.
-- [ ] P4.2 Ensure streak recalculation and UI summaries update correctly after relapse undo.
-- [ ] P4.3 Add interactive grid cell tapping for positive-mode day completion toggles.
-- [ ] P4.4 Add interactive grid cell tapping for negative-mode day relapse toggles per approved rules.
-- [ ] P4.5 Enforce day-edit guardrails (future dates, backdate bounds, duplicate protection).
-- [ ] P4.6 Preserve hybrid time model invariants when editing historical days.
-- [ ] P4.7 Add tests for:
+- [x] P4.1 Add undo support for negative-mode relapse tracking per approved contract.
+- [x] P4.2 Ensure streak recalculation and UI summaries update correctly after relapse undo.
+- [x] P4.3 Add interactive grid cell tapping for positive-mode day completion toggles.
+- [x] P4.4 Add interactive grid cell tapping for negative-mode day relapse toggles per approved rules.
+- [x] P4.5 Enforce day-edit guardrails (future dates, backdate bounds, duplicate protection).
+- [x] P4.6 Preserve hybrid time model invariants when editing historical days.
+- [x] P4.7 Add tests for:
   - Grid-driven event add/remove.
   - Undo/re-log parity between quick-action and grid interactions.
   - Timezone and midnight edge behavior after grid edits.
-- [ ] P4.8 Stage exit check: quick action and grid editing paths remain behaviorally consistent.
+- [x] P4.8 Stage exit check: quick action and grid editing paths remain behaviorally consistent.
 
 ## Stage P5: Documentation and Post-MVP Acceptance
 
