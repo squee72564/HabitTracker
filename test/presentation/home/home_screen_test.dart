@@ -976,6 +976,92 @@ void main() {
       },
     );
 
+    testWidgets('habit form saves custom colors as uppercase #RRGGBB', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository();
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+      );
+
+      await tester.tap(find.byKey(const Key('home_create_first_habit_button')));
+      await tester.pumpAndSettle();
+
+      final Finder customColorButton = find.byKey(
+        const Key('habit_form_custom_color_button'),
+      );
+      await tester.ensureVisible(customColorButton);
+      await tester.tap(customColorButton);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('habit_form_custom_color_input')),
+        '#a1b2c3',
+      );
+      await tester.tap(
+        find.byKey(const Key('habit_form_custom_color_apply_button')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('habit_form_name_field')),
+        'Custom Color Habit',
+      );
+      await tester.tap(find.byKey(const Key('habit_form_submit_button')));
+      await tester.pumpAndSettle();
+
+      final Habit createdHabit = (await repository.listActiveHabits()).single;
+      expect(createdHabit.colorHex, '#A1B2C3');
+    });
+
+    testWidgets(
+      'edit flow preserves non-preset stored color and icon without fallback',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'Sunlight',
+              iconKey: 'sun',
+              colorHex: '#A1B2C3',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('habit_card_menu_habit-1')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Edit Habit'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('habit_form_color_custom_selected')),
+          findsOneWidget,
+        );
+        await tester.enterText(
+          find.byKey(const Key('habit_form_name_field')),
+          'Sunlight Daily',
+        );
+        await tester.tap(find.byKey(const Key('habit_form_submit_button')));
+        await tester.pumpAndSettle();
+
+        final Habit updatedHabit = (await repository.listActiveHabits()).single;
+        expect(updatedHabit.colorHex, '#A1B2C3');
+        expect(updatedHabit.iconKey, 'sun');
+      },
+    );
+
     testWidgets(
       'timezone shift does not rebucket historical local day keys in grid',
       (final WidgetTester tester) async {
@@ -1197,6 +1283,14 @@ void main() {
         '#2E7D32',
         '#1565C0',
         '#5D4037',
+        '#0E7490',
+        '#7C3AED',
+        '#BE123C',
+        '#9A3412',
+        '#14532D',
+        '#1E3A8A',
+        '#374151',
+        '#0F766E',
       ];
       final List<Habit> seedHabits = List<Habit>.generate(colorHexes.length, (
         final int index,

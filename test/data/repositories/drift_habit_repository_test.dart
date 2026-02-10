@@ -92,6 +92,27 @@ void main() {
       expect(activeAfterUnarchive.single.archivedAtUtc, isNull);
     },
   );
+
+  test(
+    'round-trips stored icon and non-preset color without coercion',
+    () async {
+      final Habit habit = Habit(
+        id: 'habit-custom',
+        name: 'Custom',
+        iconKey: 'sun',
+        colorHex: '#A1B2C3',
+        mode: HabitMode.positive,
+        createdAtUtc: DateTime.utc(2026, 2, 12, 3),
+      );
+
+      await repository.saveHabit(habit);
+      final Habit? loaded = await repository.findHabitById(habit.id);
+
+      expect(loaded, isNotNull);
+      expect(loaded!.iconKey, 'sun');
+      expect(loaded.colorHex, '#A1B2C3');
+    },
+  );
 }
 
 Habit _habit({

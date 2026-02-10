@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -1432,6 +1434,8 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
   bool _didInitializeIconPickerPage = false;
 
   bool get _isEditing => widget.initialHabit != null;
+  bool get _isCustomColorSelected =>
+      !_habitColorHexOptions.contains(_selectedColorHex);
 
   @override
   void initState() {
@@ -1441,15 +1445,15 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
     _nameController = TextEditingController(text: initialHabit?.name ?? '');
     _noteController = TextEditingController(text: initialHabit?.note ?? '');
 
-    final String initialColorHex =
-        (initialHabit?.colorHex ?? _habitColorHexOptions.first).toUpperCase();
+    final String initialColorHex = _normalizeStoredColorHex(
+      initialHabit?.colorHex,
+      fallback: _habitColorHexOptions.first,
+    );
 
     _selectedIconKey = _habitIconByKey.containsKey(initialHabit?.iconKey)
         ? initialHabit!.iconKey
         : _habitIconOptions.first.key;
-    _selectedColorHex = _habitColorHexOptions.contains(initialColorHex)
-        ? initialColorHex
-        : _habitColorHexOptions.first;
+    _selectedColorHex = initialColorHex;
     _selectedMode = initialHabit?.mode ?? HabitMode.positive;
   }
 
@@ -1538,6 +1542,38 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
                         );
                       })
                       .toList(growable: false),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: <Widget>[
+                    OutlinedButton.icon(
+                      key: const Key('habit_form_custom_color_button'),
+                      onPressed: _promptForCustomColor,
+                      icon: const Icon(Icons.palette_outlined),
+                      label: const Text('Custom'),
+                    ),
+                    if (_isCustomColorSelected)
+                      Chip(
+                        key: const Key('habit_form_color_custom_selected'),
+                        avatar: CircleAvatar(
+                          backgroundColor: _colorFromHex(_selectedColorHex),
+                          child: Text(
+                            'Aa',
+                            style: TextStyle(
+                              color: _foregroundFor(
+                                _colorFromHex(_selectedColorHex),
+                              ),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                        label: Text(_selectedColorHex),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text('Mode', style: Theme.of(context).textTheme.titleSmall),
@@ -1688,16 +1724,101 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
       return;
     }
 
+    final String normalizedColorHex =
+        _canonicalHexColorOrNull(_selectedColorHex) ??
+        _selectedColorHex.trim().toUpperCase();
+
     final String noteText = _noteController.text.trim();
     Navigator.of(context).pop(
       _HabitFormResult(
         name: _nameController.text.trim(),
         iconKey: _selectedIconKey,
-        colorHex: _selectedColorHex,
+        colorHex: normalizedColorHex,
         mode: _selectedMode,
         note: noteText.isEmpty ? null : noteText,
       ),
     );
+  }
+
+  Future<void> _promptForCustomColor() async {
+    String colorDraft =
+        _canonicalHexColorOrNull(_selectedColorHex) ??
+        _selectedColorHex.trim().toUpperCase();
+    String? validationMessage;
+    final String? selectedColorHex = await showDialog<String>(
+      context: context,
+      builder: (final BuildContext context) {
+        return StatefulBuilder(
+          builder:
+              (
+                final BuildContext context,
+                final void Function(void Function()) setDialogState,
+              ) {
+                return AlertDialog(
+                  title: const Text('Custom color'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text('Enter a hex color using #RRGGBB.'),
+                      const SizedBox(height: AppSpacing.sm),
+                      TextFormField(
+                        key: const Key('habit_form_custom_color_input'),
+                        initialValue: colorDraft,
+                        maxLength: 7,
+                        textCapitalization: TextCapitalization.characters,
+                        inputFormatters: <TextInputFormatter>[
+                          FilteringTextInputFormatter.allow(
+                            RegExp('[#0-9a-fA-F]'),
+                          ),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'Hex color',
+                          hintText: '#1A2B3C',
+                          errorText: validationMessage,
+                        ),
+                        onChanged: (final String value) {
+                          colorDraft = value;
+                        },
+                      ),
+                    ],
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      key: const Key('habit_form_custom_color_apply_button'),
+                      onPressed: () {
+                        final String? normalized = _canonicalHexColorOrNull(
+                          colorDraft,
+                        );
+                        if (normalized == null) {
+                          setDialogState(() {
+                            validationMessage = 'Use #RRGGBB.';
+                          });
+                          return;
+                        }
+                        Navigator.of(context).pop(normalized);
+                      },
+                      child: const Text('Apply'),
+                    ),
+                  ],
+                );
+              },
+        );
+      },
+    );
+    if (selectedColorHex == null) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedColorHex = selectedColorHex;
+    });
   }
 
   Widget _buildIconPicker(final BuildContext context) {
@@ -1994,6 +2115,14 @@ const List<String> _habitColorHexOptions = <String>[
   '#2E7D32',
   '#1565C0',
   '#5D4037',
+  '#0E7490',
+  '#7C3AED',
+  '#BE123C',
+  '#9A3412',
+  '#14532D',
+  '#1E3A8A',
+  '#374151',
+  '#0F766E',
 ];
 
 const List<String> _mondayWeekdayLabels = <String>[
@@ -2036,23 +2165,54 @@ String _generateHabitId() {
 }
 
 Color _colorFromHex(final String hexColor) {
-  final String normalized = hexColor.trim().replaceFirst('#', '').toUpperCase();
-  if (normalized.length != 6) {
+  final String? normalized = _canonicalHexColorOrNull(hexColor);
+  if (normalized == null) {
     return AppColors.brand;
   }
 
-  final int? rgb = int.tryParse(normalized, radix: 16);
-  if (rgb == null) {
-    return AppColors.brand;
-  }
-
+  final int rgb = int.parse(normalized.substring(1), radix: 16);
   return Color(0xFF000000 | rgb);
 }
 
 Color _foregroundFor(final Color backgroundColor) {
-  return backgroundColor.computeLuminance() > 0.45
-      ? Colors.black
-      : Colors.white;
+  final double blackContrast = _contrastRatio(Colors.black, backgroundColor);
+  final double whiteContrast = _contrastRatio(Colors.white, backgroundColor);
+  return blackContrast >= whiteContrast ? Colors.black : Colors.white;
+}
+
+double _contrastRatio(final Color foreground, final Color background) {
+  final Color blendedForeground = foreground.a == 1
+      ? foreground
+      : Color.alphaBlend(foreground, background);
+  final double foregroundLuminance = blendedForeground.computeLuminance();
+  final double backgroundLuminance = background.computeLuminance();
+  final double lighter = math.max(foregroundLuminance, backgroundLuminance);
+  final double darker = math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+String _normalizeStoredColorHex(
+  final String? colorHex, {
+  required final String fallback,
+}) {
+  if (colorHex == null || colorHex.trim().isEmpty) {
+    return fallback;
+  }
+  return _canonicalHexColorOrNull(colorHex) ?? colorHex.trim().toUpperCase();
+}
+
+String? _canonicalHexColorOrNull(final String raw) {
+  final String normalized = raw.trim().toUpperCase();
+  if (normalized.isEmpty) {
+    return null;
+  }
+  final String stripped = normalized.startsWith('#')
+      ? normalized.substring(1)
+      : normalized;
+  if (!RegExp(r'^[0-9A-F]{6}$').hasMatch(stripped)) {
+    return null;
+  }
+  return '#$stripped';
 }
 
 String _formatBackdateDateLabel(final DateTime localDate) {
