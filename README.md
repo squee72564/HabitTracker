@@ -1,26 +1,36 @@
 # Habit Tracker
 
-Android-first Flutter habit tracker MVP with offline-first, local-only storage.
+Android-first Flutter habit tracker with offline-first, local-only storage.
 
-## MVP Behavior
+## Current Behavior (MVP + Post-MVP)
 
-- Create, edit, and archive habits with name, icon, color, mode, and optional note.
-- Use two modes:
-  - Positive (`Todo`): one completion per local day, second tap undoes today.
-  - Negative (`Relapse`): log relapse now or backdate up to 7 days.
-- Compute streaks with a hybrid time model:
-  - Persist UTC instants for canonical ordering and elapsed-duration math.
-  - Persist immutable local day keys (`YYYY-MM-DD`) for day-bucket logic.
-- Render a monthly per-habit grid:
-  - Positive mode: done, missed, and future day states.
-  - Negative mode: relapse-day marker states.
-- Persist all data locally in SQLite via Drift.
+- Create, edit, and archive habits with name, icon, color, mode, optional note, and optional reminder.
+- Manage archived habits in Settings:
+  - Unarchive archived habits back to Home.
+  - Permanently delete archived habits only, with typed habit-name confirmation.
+- Tracking modes:
+  - Positive (`Todo`): quick action marks today done, second tap undoes today.
+  - Negative (`Relapse`): quick action logs relapse when no relapse exists, otherwise undoes the latest relapse only.
+- Monthly per-habit grid supports day taps:
+  - Future days are read-only in both modes.
+  - Positive mode toggles completion from creation day through today.
+  - Negative mode toggles relapse markers for today and the previous 7 local days.
+- Backdate flow for negative mode logs relapse up to 7 local days.
+- Reminder model:
+  - Per-habit daily reminder toggle and time are configurable.
+  - Global reminders switch pauses/resumes scheduling while preserving per-habit reminder preferences.
+- Reset flow in Settings requires typing `RESET` and permanently clears habits, events, reminders, and app settings.
+- Hybrid time model:
+  - Persist UTC instants (`occurredAtUtc`) for ordering and elapsed duration.
+  - Persist immutable local day keys (`localDayKey`, `YYYY-MM-DD`) for day-bucket logic.
+  - Persist `tzOffsetMinutesAtEvent` for each event.
+- Persist all app data locally in SQLite via Drift.
 
 ## Tech Constraints
 
 - Flutter-native state primitives only (`setState`, `ValueNotifier`, `ChangeNotifier`).
 - Local persistence only (`drift`, `drift_flutter`, `sqlite3_flutter_libs`).
-- No cloud sync, auth, or background service architecture for MVP.
+- No cloud sync/auth or remote backend.
 
 ## Getting Started (Android)
 
@@ -48,32 +58,15 @@ Android-first Flutter habit tracker MVP with offline-first, local-only storage.
    - `adb install -r build/app/outputs/flutter-apk/app-release.apk`
 
 If `android/key.properties` is not present, Gradle falls back to debug signing so local release artifact generation still works.
-Use `RELEASE_CHECKLIST.md` for pre-release verification and final smoke-test tracking.
+Use `RELEASE_CHECKLIST.md` for pre-release verification, destructive-action and grid-editing regressions, and final smoke-test tracking.
 
-## Known Limitations (MVP)
+## Known Limitations
 
 - Data is local-only and device-bound.
 - No cloud backup or sync across devices.
 - Uninstalling the app can permanently delete habit history.
 - Historical day buckets are immutable by design and will not rebucket after timezone changes.
 - Device clock/timezone is trusted at event creation time; manual clock skew can affect captured timestamps/day keys.
-
-## Post-MVP Contracts (Locked for Implementation)
-
-- Archive is the default removal path; archived habits are hidden from Home and can be unarchived in-app.
-- Permanent delete is supported only as a separate destructive action for archived habits and removes linked local data.
-- Relapse undo is limited to the latest relapse event for a habit and must use explicit "history-changing" UX copy.
-- Grid day editing is past/present only:
-  - Positive: toggle completion from habit creation day through today.
-  - Negative: toggle relapse markers for today and the previous 7 local days.
-- Color strategy:
-  - Expanded preset palette plus optional custom color.
-  - Persist colors as uppercase `#RRGGBB`.
-  - Preserve stored color fidelity; fallback to brand color only for invalid hex.
-- Icon strategy:
-  - Expanded Material icon catalog.
-  - Icon-only responsive grid with horizontal page swiping for large sets.
-  - Accessibility labels remain required for icon-only controls.
 
 ## Out of Scope
 

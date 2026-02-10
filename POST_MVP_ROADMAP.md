@@ -133,9 +133,9 @@ This roadmap extends the shipped MVP with UX and control improvements discovered
 
 ## Stage P5: Documentation and Post-MVP Acceptance
 
-- [ ] P5.1 Update `README.md` with new post-MVP interaction patterns and constraints.
-- [ ] P5.2 Update `MVP.md` or create addendum docs for archive/delete and reminder architecture changes.
-- [ ] P5.3 Add a dedicated regression checklist for destructive actions and grid editing.
+- [x] P5.1 Update `README.md` with new post-MVP interaction patterns and constraints.
+- [x] P5.2 Update `MVP.md` or create addendum docs for archive/delete and reminder architecture changes.
+- [x] P5.3 Add a dedicated regression checklist for destructive actions and grid editing.
 - [ ] P5.4 Perform manual Android smoke pass on emulator and physical device for all post-MVP features.
 - [ ] P5.5 Stage exit check: docs and tested behavior match shipped functionality.
 

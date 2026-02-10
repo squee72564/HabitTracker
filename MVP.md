@@ -27,16 +27,17 @@
 14. Habit cards with name, icon, current streak, and quick action button.
 15. Quick action behavior.
 16. Positive: mark done / undo today.
-17. Negative: log relapse now.
+17. Negative: log relapse now or undo latest relapse (latest-relapse-only guardrail).
 18. GitHub-style grid.
 19. Monthly view per habit.
 20. Daily cells.
 21. Positive mode: done vs missed vs future.
-22. Negative mode: relapse-day marker (recommended for V1 consistency).
+22. Negative mode: relapse-day marker with day-tap toggle support in allowed range.
 23. Basic settings.
 24. Start week on Monday/Sunday.
 25. 12h/24h time format.
-26. Optional reminder notification per habit (single daily reminder, local only).
+26. Optional reminder notification per habit (single daily reminder, local only) with global reminders on/off.
+27. Data management surface for archived habits (unarchive and permanent delete) plus reset-all-data.
 
 ## Data Model (Simple + Durable)
 
@@ -57,7 +58,7 @@ Using event history avoids edge-case bugs and lets you recompute streaks reliabl
 6. Positive: one completion per habit per `localDayKey`; second tap toggles undo.
 7. Negative: multiple relapses allowed; latest `occurredAtUtc` resets elapsed streak.
 8. Backdating allowed up to 7 days; must compute and persist matching `localDayKey`.
-9. Deletion uses archive (soft delete) by default.
+9. Deletion uses archive (soft delete) by default; permanent delete is allowed only for archived habits with stronger confirmation.
 10. Validation prevents empty names and case-insensitive duplicates.
 
 ## Edge Cases to Explicitly Handle
@@ -127,3 +128,20 @@ Using event history avoids edge-case bugs and lets you recompute streaks reliabl
 25. Use icon-only grid selection with responsive columns.
 26. Add page-based browsing with horizontal swiping when needed.
 27. Preserve accessibility semantics/labels for icon-only controls.
+
+## Post-MVP Implementation Addendum (Shipped 2026-02-10)
+
+1. Archive/Delete lifecycle
+2. Home action archives habits; archived habits are hidden from Home.
+3. Settings includes an archived habits screen with explicit `Unarchive` and `Delete permanently` actions.
+4. Permanent delete requires typed habit-name confirmation and removes the habit with linked events and reminder rows.
+5. Reminder architecture
+6. Per-habit reminder preferences are stored independently (`isEnabled` + reminder time minutes).
+7. Global reminder enablement is stored in app settings (`remindersEnabled`) and controls whether schedules are active.
+8. When global reminders are disabled, scheduled notifications are canceled but per-habit reminder preferences remain persisted.
+9. On startup and settings changes, notification scheduling is synchronized against active habits, per-habit reminder flags, and global reminders state.
+10. Unarchive attempts to re-schedule reminders only when global reminders are enabled and the habit reminder is enabled.
+11. Tracking interaction expansion
+12. Negative quick action behavior is dual-mode: log relapse when no relapse exists, otherwise undo latest relapse.
+13. Grid day taps are first-class editing controls and preserve the hybrid time contract (`occurredAtUtc`, `localDayKey`, `tzOffsetMinutesAtEvent`).
+14. Grid guardrails: future days blocked for all modes; positive blocked before creation day; negative limited to today and prior 7 local days.
