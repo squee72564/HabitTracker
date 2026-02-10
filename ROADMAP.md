@@ -91,13 +91,13 @@ This roadmap is derived from `MVP.md` and is designed to be completed in small, 
 
 ## Stage 7: Settings + Notifications
 
-- [ ] R7.1 Build settings screen with week start toggle (Monday/Sunday).
-- [ ] R7.2 Build time format toggle (12h/24h).
-- [ ] R7.3 Add per-habit local reminder configuration (single daily reminder).
-- [ ] R7.4 Schedule/cancel local notifications for enabled habits.
-- [ ] R7.5 Handle Android notification permission flow and disabled-permission fallback UX.
-- [ ] R7.6 Persist settings and reminder configurations across restarts.
-- [ ] R7.7 Stage 7 exit check: settings apply globally and reminders fire on-device.
+- [x] R7.1 Build settings screen with week start toggle (Monday/Sunday).
+- [x] R7.2 Build time format toggle (12h/24h).
+- [x] R7.3 Add per-habit local reminder configuration (single daily reminder).
+- [x] R7.4 Schedule/cancel local notifications for enabled habits.
+- [x] R7.5 Handle Android notification permission flow and disabled-permission fallback UX.
+- [x] R7.6 Persist settings and reminder configurations across restarts.
+- [x] R7.7 Stage 7 exit check: settings apply globally and reminders fire on-device.
 
 ## Stage 8: QA, Hardening, and Accessibility
 
