@@ -1,0 +1,117 @@
+# Habit Tracker Post-MVP Roadmap
+
+This roadmap extends the shipped MVP with UX and control improvements discovered during Stage 9 closeout.
+
+## Status Legend
+
+- [ ] Not started
+- [x] Completed
+- [~] In progress (replace manually when needed)
+
+## Guardrails (Carry Forward)
+
+- Keep local-first architecture (no cloud sync/auth unless explicitly added in a future roadmap).
+- Keep hybrid time model intact:
+  - UTC instants are canonical for event ordering/duration.
+  - `localDayKey` is immutable once written.
+  - No historical rebucketing after timezone changes.
+- Keep Flutter-native state approach unless complexity forces a change.
+
+## Stage P0: Product Clarifications and UX Contracts
+
+- [ ] P0.1 Define archive vs delete policy in product docs:
+  - Archive behavior and visibility.
+  - Whether permanent delete is supported and from where.
+  - Whether unarchive is user-accessible in-app.
+- [ ] P0.2 Define relapse undo semantics:
+  - Undo latest relapse only vs undo specific relapse.
+  - Time window/guardrails for undo.
+  - UX language for history-changing actions.
+- [ ] P0.3 Define grid tap interaction contract:
+  - Positive mode: add/remove completion for selected day.
+  - Negative mode: add/remove relapse marker for selected day.
+  - Allowed day range (historical/future) and mode-specific constraints.
+- [ ] P0.4 Define color strategy:
+  - Expanded default palette requirements.
+  - Custom color picker constraints (contrast, storage format, fallback rules).
+- [ ] P0.5 Define icon catalog strategy:
+  - Source and size of icon set.
+  - Pagination/virtualization requirements.
+  - Selection behavior on small screens and large text scale.
+- [ ] P0.6 Stage exit check: all contracts approved and reflected in docs before implementation stages begin.
+
+## Stage P1: Habit Form UX Upgrade (Icons + Colors)
+
+- [ ] P1.1 Replace icon chip list with compact icon-only grid selection UI.
+- [ ] P1.2 Expand icon catalog significantly and organize for discoverability.
+- [ ] P1.3 Add pagination or horizontal swiping between icon pages when icon count exceeds viewport.
+- [ ] P1.4 Make icon grid responsive (column count adapts to width; no overflow at large text scales).
+- [ ] P1.5 Remove icon text labels from selection controls while preserving accessibility semantics.
+- [ ] P1.6 Expand default color palette with curated accessible options.
+- [ ] P1.7 Add optional custom color selection flow (e.g., picker/wheel) with persisted hex values.
+- [ ] P1.8 Enforce contrast-safe foreground behavior for both preset and custom colors.
+- [ ] P1.9 Update edit flow so existing stored colors/icons always render without lossy fallback.
+- [ ] P1.10 Add/update widget tests for icon grid behavior, responsive layout, and color selection/persistence.
+- [ ] P1.11 Stage exit check: create/edit form remains stable on small screens and high text scaling with expanded icon/color options.
+
+## Stage P2: Reminder UX Refactor (Per-Habit + Global Control)
+
+- [ ] P2.1 Add per-habit reminder toggle and time controls into create/edit habit flow.
+- [ ] P2.2 Decide and implement edit-mode behavior for reminder defaults vs existing reminder rows.
+- [ ] P2.3 Add global reminders master toggle in Settings.
+- [ ] P2.4 Ensure global toggle disables scheduling while preserving per-habit preferences for later re-enable.
+- [ ] P2.5 Keep week-start/time-format settings behavior unchanged unless intentionally redesigned.
+- [ ] P2.6 Update startup reminder sync logic to honor global toggle.
+- [ ] P2.7 Add migration/default handling for global reminder setting persistence.
+- [ ] P2.8 Add tests for:
+  - Reminder creation via habit form.
+  - Permission flows.
+  - Global on/off interactions with per-habit reminders.
+- [ ] P2.9 Stage exit check: reminders are predictable from both habit form and settings entry points.
+
+## Stage P3: Data Lifecycle Controls (Reset, Archive, Unarchive, Delete)
+
+- [ ] P3.1 Add in-app "Reset all data" action in Settings.
+- [ ] P3.2 Require typed confirmation phrase for destructive reset execution.
+- [ ] P3.3 Implement transactional data wipe across habits, events, reminders, and app settings.
+- [ ] P3.4 Add post-reset UX confirmation and safe app state reinitialization.
+- [ ] P3.5 Add explicit archive management UI:
+  - View archived habits.
+  - Unarchive action.
+- [ ] P3.6 Clarify and implement permanent delete policy:
+  - If supported, add a separate destructive path with stronger confirmation.
+  - If not supported, document archive-only behavior clearly in-app.
+- [ ] P3.7 Add tests for reset and archive/unarchive/delete lifecycle behavior, including restart persistence.
+- [ ] P3.8 Stage exit check: destructive actions require deliberate confirmation and leave no ambiguous state.
+
+## Stage P4: Tracking Interaction Expansion (Undo Relapse + Grid Day Editing)
+
+- [ ] P4.1 Add undo support for negative-mode relapse tracking per approved contract.
+- [ ] P4.2 Ensure streak recalculation and UI summaries update correctly after relapse undo.
+- [ ] P4.3 Add interactive grid cell tapping for positive-mode day completion toggles.
+- [ ] P4.4 Add interactive grid cell tapping for negative-mode day relapse toggles per approved rules.
+- [ ] P4.5 Enforce day-edit guardrails (future dates, backdate bounds, duplicate protection).
+- [ ] P4.6 Preserve hybrid time model invariants when editing historical days.
+- [ ] P4.7 Add tests for:
+  - Grid-driven event add/remove.
+  - Undo/re-log parity between quick-action and grid interactions.
+  - Timezone and midnight edge behavior after grid edits.
+- [ ] P4.8 Stage exit check: quick action and grid editing paths remain behaviorally consistent.
+
+## Stage P5: Documentation and Post-MVP Acceptance
+
+- [ ] P5.1 Update `README.md` with new post-MVP interaction patterns and constraints.
+- [ ] P5.2 Update `MVP.md` or create addendum docs for archive/delete and reminder architecture changes.
+- [ ] P5.3 Add a dedicated regression checklist for destructive actions and grid editing.
+- [ ] P5.4 Perform manual Android smoke pass on emulator and physical device for all post-MVP features.
+- [ ] P5.5 Stage exit check: docs and tested behavior match shipped functionality.
+
+## Post-MVP Acceptance Checklist
+
+- [ ] PM-A1 Icon selection is compact, icon-only, and scalable to a large catalog.
+- [ ] PM-A2 Color selection supports richer defaults and optional custom colors with safe contrast.
+- [ ] PM-A3 Per-habit reminder controls are available in create/edit, with coherent global reminder control.
+- [ ] PM-A4 Users can intentionally reset all app data through guarded confirmation flow.
+- [ ] PM-A5 Negative-mode relapse supports undo with clear streak/event outcomes.
+- [ ] PM-A6 Grid day interactions can add/remove events while preserving hybrid time invariants.
+- [ ] PM-A7 Archive/unarchive/delete behavior is explicit in UX and documentation.

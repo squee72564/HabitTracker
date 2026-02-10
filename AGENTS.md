@@ -16,7 +16,7 @@ Use only the high-signal paths below during normal agent work:
   - `presentation/`: widget and flow regressions.
 - `android/`: Android app config, manifests/resources, Gradle build/signing setup.
 - `tool/`: local helper scripts (for example CI convenience commands).
-- Root product/docs/config files: `MVP.md`, `ROADMAP.md`, `README.md`, `pubspec.yaml`, `analysis_options.yaml`.
+- Root product/docs/config files: `MVP.md`, `POST_MVP_ROADMAP.md`, `README.md`, `pubspec.yaml`, `analysis_options.yaml`.
 
 Platform folders like `ios/`, `web/`, `macos/`, `linux/`, and `windows/` are generated scaffolding unless a task explicitly targets those platforms.
 
@@ -52,7 +52,7 @@ Use Flutter-native commands:
 Read these files only as needed focusing on progressive disclosure
 
 1. `MVP.md`: source of truth for scope, rules, edge cases, and acceptance criteria.
-2. `ROADMAP.md`: execution plan with granular stage tasks and checkboxes.
+2. `POST_MVP_ROADMAP.md`: execution plan with granular stage tasks and checkboxes.
 
 ## Implementation Constraints
 
