@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:habit_tracker/core/core.dart';
@@ -757,6 +759,432 @@ void main() {
       expect(find.text('Reminder off'), findsOneWidget);
     });
   });
+
+  group('HomeScreen Stage 8 QA + accessibility flows', () {
+    testWidgets('integration flow creates habit and updates streak + grid', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository();
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository();
+      final DateTime nowLocal = DateTime(2026, 2, 15, 9, 0);
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => nowLocal,
+      );
+
+      await tester.tap(find.byKey(const Key('home_create_first_habit_button')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('habit_form_name_field')),
+        'Meditate',
+      );
+      await tester.tap(find.byKey(const Key('habit_form_submit_button')));
+      await tester.pumpAndSettle();
+
+      final Habit createdHabit = (await repository.listActiveHabits()).single;
+      expect(
+        find.byKey(
+          ValueKey<String>(
+            'habit_grid_cell_${createdHabit.id}_2026-02-15_positiveMissed',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Streak: 0 days (Best: 0 days) • Not done today'),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(
+          ValueKey<String>('habit_card_quick_action_${createdHabit.id}'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          ValueKey<String>(
+            'habit_grid_cell_${createdHabit.id}_2026-02-15_positiveDone',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Streak: 1 day (Best: 1 day) • Done today'),
+        findsOneWidget,
+      );
+      final List<HabitEvent> events = await eventRepository.listEventsForHabit(
+        createdHabit.id,
+      );
+      expect(events.length, 1);
+      expect(events.single.localDayKey, '2026-02-15');
+    });
+
+    testWidgets(
+      'timezone shift does not rebucket historical local day keys in grid',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'Read',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 3, 1, 8),
+            ),
+          ],
+        );
+        final _FakeHabitEventRepository eventRepository =
+            _FakeHabitEventRepository(
+              seedEvents: <HabitEvent>[
+                HabitEvent(
+                  id: 'event-1',
+                  habitId: 'habit-1',
+                  eventType: HabitEventType.complete,
+                  occurredAtUtc: DateTime.utc(2026, 3, 15, 2),
+                  localDayKey: '2026-03-14',
+                  tzOffsetMinutesAtEvent: -300,
+                ),
+              ],
+            );
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: eventRepository,
+          clock: () => DateTime(2026, 3, 14, 21),
+        );
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-1_2026-03-14_positiveDone',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Done today'), findsOneWidget);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: eventRepository,
+          clock: () => DateTime(2026, 3, 15, 9),
+        );
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-1_2026-03-14_positiveDone',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-1_2026-03-15_positiveMissed',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Not done today'), findsOneWidget);
+      },
+    );
+
+    testWidgets('undo and re-log keep grid and streak in sync', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository();
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => DateTime(2026, 2, 15, 9, 30),
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-15_positiveMissed',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-15_positiveDone',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Streak: 1 day (Best: 1 day) • Done today'),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-15_positiveMissed',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Streak: 0 days (Best: 0 days) • Not done today'),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-1_2026-02-15_positiveDone',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Streak: 1 day (Best: 1 day) • Done today'),
+        findsOneWidget,
+      );
+
+      final List<HabitEvent> events = await eventRepository.listEventsForHabit(
+        'habit-1',
+      );
+      expect(events.length, 1);
+      expect(events.single.localDayKey, '2026-02-15');
+      expect(events.single.eventType, HabitEventType.complete);
+    });
+
+    testWidgets('long names stay overflow-safe at large text scaling', (
+      final WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name:
+                'Extremely Long Habit Name That Must Stay Stable Under Accessibility Text Scaling',
+            iconKey: 'journal',
+            colorHex: '#255F85',
+            mode: HabitMode.positive,
+            note:
+                'This note is intentionally long so subtitle rows still need safe truncation.',
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        clock: () => DateTime(2026, 2, 15, 9),
+        textScaleFactor: 1.8,
+      );
+
+      expect(tester.takeException(), isNull);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('habit card text and actions meet contrast thresholds', (
+      final WidgetTester tester,
+    ) async {
+      const List<String> colorHexes = <String>[
+        '#1C7C54',
+        '#255F85',
+        '#6A4C93',
+        '#8A2D3B',
+        '#B85C00',
+        '#2E7D32',
+        '#1565C0',
+        '#5D4037',
+      ];
+      final List<Habit> seedHabits = List<Habit>.generate(colorHexes.length, (
+        final int index,
+      ) {
+        return Habit(
+          id: 'habit-${index + 1}',
+          name: 'Habit ${index + 1}',
+          iconKey: index.isEven ? 'book' : 'walk',
+          colorHex: colorHexes[index],
+          mode: switch (index) {
+            2 || 3 => HabitMode.negative,
+            _ => HabitMode.positive,
+          },
+          createdAtUtc: DateTime.utc(2026, 2, 1 + index, 8),
+        );
+      });
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository(
+            seedEvents: <HabitEvent>[
+              HabitEvent(
+                id: 'event-positive-done',
+                habitId: 'habit-2',
+                eventType: HabitEventType.complete,
+                occurredAtUtc: DateTime.utc(2026, 2, 15, 12),
+                localDayKey: '2026-02-15',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+              HabitEvent(
+                id: 'event-negative-relapse',
+                habitId: 'habit-4',
+                eventType: HabitEventType.relapse,
+                occurredAtUtc: DateTime.utc(2026, 2, 15, 8),
+                localDayKey: '2026-02-15',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+            ],
+          );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: _FakeHabitRepository(seedHabits: seedHabits),
+        eventRepository: eventRepository,
+        clock: () => DateTime(2026, 2, 15, 9),
+      );
+
+      for (final Habit habit in seedHabits) {
+        final Finder cardFinder = find.byKey(
+          ValueKey<String>('habit_card_${habit.id}'),
+        );
+        await tester.scrollUntilVisible(
+          cardFinder,
+          240,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        _expectHabitCardContrast(
+          tester: tester,
+          habitId: habit.id,
+          minContrastRatio: 4.5,
+        );
+      }
+    });
+  });
+}
+
+void _expectHabitCardContrast({
+  required final WidgetTester tester,
+  required final String habitId,
+  required final double minContrastRatio,
+}) {
+  final Finder cardFinder = find.byKey(ValueKey<String>('habit_card_$habitId'));
+  final Card card = tester.widget<Card>(
+    find.descendant(of: cardFinder, matching: find.byType(Card)),
+  );
+  final Color backgroundColor = card.color ?? Colors.transparent;
+
+  final ListTile listTile = tester.widget<ListTile>(
+    find.descendant(of: cardFinder, matching: find.byType(ListTile)),
+  );
+  final Text title = listTile.title! as Text;
+  _expectMinContrast(
+    foreground: title.style?.color,
+    background: backgroundColor,
+    contextLabel: '$habitId title',
+    minContrastRatio: minContrastRatio,
+  );
+
+  final Widget subtitle = listTile.subtitle!;
+  if (subtitle is Column) {
+    for (final Text text in subtitle.children.whereType<Text>()) {
+      _expectMinContrast(
+        foreground: text.style?.color,
+        background: backgroundColor,
+        contextLabel: '$habitId subtitle',
+        minContrastRatio: minContrastRatio,
+      );
+    }
+  }
+
+  final IconButton quickAction = tester.widget<IconButton>(
+    find.byKey(ValueKey<String>('habit_card_quick_action_$habitId')),
+  );
+  _expectMinContrast(
+    foreground: quickAction.color,
+    background: backgroundColor,
+    contextLabel: '$habitId quick action',
+    minContrastRatio: minContrastRatio,
+  );
+}
+
+void _expectMinContrast({
+  required final Color? foreground,
+  required final Color background,
+  required final String contextLabel,
+  required final double minContrastRatio,
+}) {
+  expect(
+    foreground,
+    isNotNull,
+    reason: '$contextLabel should define an explicit foreground color.',
+  );
+  final double contrast = _contrastRatio(foreground!, background);
+  expect(
+    contrast,
+    greaterThanOrEqualTo(minContrastRatio),
+    reason:
+        '$contextLabel contrast ratio ${contrast.toStringAsFixed(2)} must be >= $minContrastRatio.',
+  );
+}
+
+double _contrastRatio(final Color foreground, final Color background) {
+  final Color blendedForeground = foreground.a == 1
+      ? foreground
+      : Color.alphaBlend(foreground, background);
+  final double foregroundLuminance = blendedForeground.computeLuminance();
+  final double backgroundLuminance = background.computeLuminance();
+  final double lighter = math.max(foregroundLuminance, backgroundLuminance);
+  final double darker = math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 Future<void> _pumpHomeScreen({
@@ -767,6 +1195,7 @@ Future<void> _pumpHomeScreen({
   HabitReminderRepository? habitReminderRepository,
   ReminderNotificationScheduler? notificationScheduler,
   DateTime Function()? clock,
+  double? textScaleFactor,
 }) async {
   final AppSettingsRepository resolvedAppSettingsRepository =
       appSettingsRepository ?? _FakeAppSettingsRepository();
@@ -775,18 +1204,30 @@ Future<void> _pumpHomeScreen({
   final ReminderNotificationScheduler resolvedNotificationScheduler =
       notificationScheduler ?? _FakeReminderNotificationScheduler();
 
+  Widget homeScreen = HomeScreen(
+    habitRepository: repository,
+    habitEventRepository: eventRepository,
+    appSettingsRepository: resolvedAppSettingsRepository,
+    habitReminderRepository: resolvedHabitReminderRepository,
+    notificationScheduler: resolvedNotificationScheduler,
+    clock: clock ?? DateTime.now,
+  );
+  if (textScaleFactor != null) {
+    final Widget child = homeScreen;
+    homeScreen = Builder(
+      builder: (final BuildContext context) {
+        return MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScaleFactor)),
+          child: child,
+        );
+      },
+    );
+  }
+
   await tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.light(),
-      home: HomeScreen(
-        habitRepository: repository,
-        habitEventRepository: eventRepository,
-        appSettingsRepository: resolvedAppSettingsRepository,
-        habitReminderRepository: resolvedHabitReminderRepository,
-        notificationScheduler: resolvedNotificationScheduler,
-        clock: clock ?? DateTime.now,
-      ),
-    ),
+    MaterialApp(theme: AppTheme.light(), home: homeScreen),
   );
   await tester.pumpAndSettle();
 }
