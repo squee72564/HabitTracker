@@ -51,6 +51,7 @@ void main() {
       const AppSettings(
         weekStart: AppWeekStart.sunday,
         timeFormat: AppTimeFormat.twentyFourHour,
+        remindersEnabled: false,
       ),
     );
     await firstReminderRepository.saveReminder(
@@ -89,6 +90,7 @@ void main() {
     expect(persistedEvents.single.localDayKey, '2026-02-10');
     expect(persistedSettings.weekStart, AppWeekStart.sunday);
     expect(persistedSettings.timeFormat, AppTimeFormat.twentyFourHour);
+    expect(persistedSettings.remindersEnabled, isFalse);
     expect(persistedReminder, isNotNull);
     expect(persistedReminder!.isEnabled, isTrue);
     expect(persistedReminder.reminderTimeMinutes, 21 * 60 + 15);

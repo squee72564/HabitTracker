@@ -164,6 +164,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: AppSpacing.lg),
         Text('Reminders', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        Card(
+          child: SwitchListTile(
+            key: const Key('settings_global_reminders_switch'),
+            title: const Text('Enable reminders'),
+            subtitle: Text(
+              _settings.remindersEnabled
+                  ? 'Per-habit reminders can schedule notifications.'
+                  : 'All reminders are paused. Per-habit preferences are preserved.',
+            ),
+            value: _settings.remindersEnabled,
+            onChanged: _toggleGlobalReminders,
+          ),
+        ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           'Configure a single daily reminder per habit.',
@@ -215,9 +229,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             Text(
-              reminder.isEnabled
-                  ? 'Daily at ${_formatReminderTime(reminder.reminderTimeMinutes)}'
-                  : 'Reminder off',
+              _reminderLabel(reminder),
               key: ValueKey<String>('settings_reminder_label_${habit.id}'),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -285,7 +297,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       final HabitReminder current = _reminderForHabit(habit.id);
-      if (enabled) {
+      if (enabled && _settings.remindersEnabled) {
         final bool permissionGranted = await _ensurePermissionForReminders();
         if (!permissionGranted) {
           if (mounted) {
@@ -297,7 +309,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       final HabitReminder updated = current.copyWith(isEnabled: enabled);
       await widget.habitReminderRepository.saveReminder(updated);
-      if (enabled) {
+      if (enabled && _settings.remindersEnabled) {
         await widget.notificationScheduler.scheduleDailyReminder(
           habitId: habit.id,
           habitName: habit.name,
@@ -316,6 +328,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           habit.id: updated,
         };
       });
+      if (enabled && !_settings.remindersEnabled) {
+        _showSnackBar(
+          'Reminder preference saved. Enable global reminders to schedule it.',
+        );
+      }
     } on Object catch (error, stackTrace) {
       _logger.error(
         'Failed to toggle reminder for habit ${habit.id}.',
@@ -354,11 +371,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         reminderTimeMinutes: picked.hour * 60 + picked.minute,
       );
       await widget.habitReminderRepository.saveReminder(updated);
-      await widget.notificationScheduler.scheduleDailyReminder(
-        habitId: habit.id,
-        habitName: habit.name,
-        reminderTimeMinutes: updated.reminderTimeMinutes,
-      );
+      if (_settings.remindersEnabled) {
+        await widget.notificationScheduler.scheduleDailyReminder(
+          habitId: habit.id,
+          habitName: habit.name,
+          reminderTimeMinutes: updated.reminderTimeMinutes,
+        );
+      } else {
+        await widget.notificationScheduler.cancelReminder(habitId: habit.id);
+      }
 
       if (!mounted) {
         return;
@@ -369,7 +390,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           habit.id: updated,
         };
       });
-      _showSnackBar('Reminder time updated.');
+      _showSnackBar(
+        _settings.remindersEnabled
+            ? 'Reminder time updated.'
+            : 'Reminder time saved. Enable global reminders to apply it.',
+      );
     } on Object catch (error, stackTrace) {
       _logger.error(
         'Failed to update reminder time for habit ${habit.id}.',
@@ -381,6 +406,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } finally {
       _setHabitBusy(habit.id, isBusy: false);
+    }
+  }
+
+  Future<void> _toggleGlobalReminders(final bool enabled) async {
+    final AppSettings previous = _settings;
+    final AppSettings updated = _settings.copyWith(remindersEnabled: enabled);
+    setState(() {
+      _settings = updated;
+    });
+
+    try {
+      await widget.appSettingsRepository.saveSettings(updated);
+      await _syncSchedulesForGlobalSetting(enabled: enabled);
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar(
+        enabled ? 'Global reminders enabled.' : 'Global reminders disabled.',
+      );
+    } on Object catch (error, stackTrace) {
+      _logger.error(
+        'Failed to toggle global reminders.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _settings = previous;
+      });
+      _showSnackBar('Could not update reminder settings.');
+    }
+  }
+
+  Future<void> _syncSchedulesForGlobalSetting({
+    required final bool enabled,
+  }) async {
+    final Set<String> habitIdsToCancel = <String>{
+      for (final Habit habit in _habits) habit.id,
+      ..._remindersByHabitId.keys,
+    };
+    if (!enabled) {
+      for (final String habitId in habitIdsToCancel) {
+        await widget.notificationScheduler.cancelReminder(habitId: habitId);
+      }
+      return;
+    }
+
+    final Map<String, Habit> habitsById = <String, Habit>{
+      for (final Habit habit in _habits) habit.id: habit,
+    };
+    for (final HabitReminder reminder in _remindersByHabitId.values) {
+      final Habit? habit = habitsById[reminder.habitId];
+      if (habit == null || !reminder.isEnabled) {
+        await widget.notificationScheduler.cancelReminder(
+          habitId: reminder.habitId,
+        );
+        continue;
+      }
+      await widget.notificationScheduler.scheduleDailyReminder(
+        habitId: habit.id,
+        habitName: habit.name,
+        reminderTimeMinutes: reminder.reminderTimeMinutes,
+      );
     }
   }
 
@@ -449,6 +539,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final int hour12 = hour % 12 == 0 ? 12 : hour % 12;
     final String period = isPm ? 'PM' : 'AM';
     return '$hour12:$minuteText $period';
+  }
+
+  String _reminderLabel(final HabitReminder reminder) {
+    if (!reminder.isEnabled) {
+      return 'Reminder off';
+    }
+    final String formattedTime = _formatReminderTime(
+      reminder.reminderTimeMinutes,
+    );
+    if (!_settings.remindersEnabled) {
+      return 'Saved for $formattedTime (global reminders off)';
+    }
+    return 'Daily at $formattedTime';
   }
 
   void _showSnackBar(final String message) {

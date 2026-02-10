@@ -5,20 +5,24 @@ class AppSettings {
   const AppSettings({
     this.weekStart = AppWeekStart.monday,
     this.timeFormat = AppTimeFormat.twelveHour,
+    this.remindersEnabled = true,
   });
 
   static const AppSettings defaults = AppSettings();
 
   final AppWeekStart weekStart;
   final AppTimeFormat timeFormat;
+  final bool remindersEnabled;
 
   AppSettings copyWith({
     final AppWeekStart? weekStart,
     final AppTimeFormat? timeFormat,
+    final bool? remindersEnabled,
   }) {
     return AppSettings(
       weekStart: weekStart ?? this.weekStart,
       timeFormat: timeFormat ?? this.timeFormat,
+      remindersEnabled: remindersEnabled ?? this.remindersEnabled,
     );
   }
 }

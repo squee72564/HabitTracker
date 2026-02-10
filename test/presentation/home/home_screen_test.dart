@@ -675,6 +675,80 @@ void main() {
       expect(find.text('Daily at 13:05'), findsOneWidget);
     });
 
+    testWidgets('global reminder toggle pauses and resumes scheduling', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeAppSettingsRepository appSettingsRepository =
+          _FakeAppSettingsRepository();
+      final _FakeHabitReminderRepository reminderRepository =
+          _FakeHabitReminderRepository(
+            seedReminders: <HabitReminder>[
+              HabitReminder(
+                habitId: 'habit-1',
+                isEnabled: true,
+                reminderTimeMinutes: 13 * 60 + 5,
+              ),
+            ],
+          );
+      final _FakeReminderNotificationScheduler notificationScheduler =
+          _FakeReminderNotificationScheduler();
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        appSettingsRepository: appSettingsRepository,
+        habitReminderRepository: reminderRepository,
+        notificationScheduler: notificationScheduler,
+      );
+
+      await tester.tap(find.byKey(const Key('home_open_settings_button')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const Key('settings_global_reminders_switch')),
+      );
+      await tester.pumpAndSettle();
+
+      final AppSettings settingsWithGlobalOff = await appSettingsRepository
+          .loadSettings();
+      expect(settingsWithGlobalOff.remindersEnabled, isFalse);
+      expect(
+        notificationScheduler.cancelledHabitIds.contains('habit-1'),
+        isTrue,
+      );
+      expect(
+        find.text('Saved for 1:05 PM (global reminders off)'),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const Key('settings_global_reminders_switch')),
+      );
+      await tester.pumpAndSettle();
+
+      final AppSettings settingsWithGlobalOn = await appSettingsRepository
+          .loadSettings();
+      expect(settingsWithGlobalOn.remindersEnabled, isTrue);
+      expect(
+        notificationScheduler.scheduledMinutesByHabitId['habit-1'],
+        13 * 60 + 5,
+      );
+      expect(find.text('Daily at 1:05 PM'), findsOneWidget);
+    });
+
     testWidgets('enabling reminder requests permission and schedules', (
       final WidgetTester tester,
     ) async {
@@ -713,6 +787,59 @@ void main() {
       expect(notificationScheduler.scheduledMinutesByHabitId['habit-1'], 1200);
       expect(find.text('Daily at 8:00 PM'), findsOneWidget);
     });
+
+    testWidgets(
+      'enabling per-habit reminder while global reminders are off does not request permission',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'Read',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+        final _FakeAppSettingsRepository appSettingsRepository =
+            _FakeAppSettingsRepository(
+              seedSettings: const AppSettings(remindersEnabled: false),
+            );
+        final _FakeHabitReminderRepository reminderRepository =
+            _FakeHabitReminderRepository();
+        final _FakeReminderNotificationScheduler notificationScheduler =
+            _FakeReminderNotificationScheduler()
+              ..notificationsAllowed = false
+              ..grantPermissionOnRequest = false;
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+          appSettingsRepository: appSettingsRepository,
+          habitReminderRepository: reminderRepository,
+          notificationScheduler: notificationScheduler,
+        );
+
+        await tester.tap(find.byKey(const Key('home_open_settings_button')));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('settings_reminder_toggle_habit-1'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final HabitReminder? reminder = await reminderRepository
+            .findReminderByHabitId('habit-1');
+        expect(reminder, isNotNull);
+        expect(reminder?.isEnabled, isTrue);
+        expect(notificationScheduler.permissionRequestCount, 0);
+        expect(notificationScheduler.scheduledMinutesByHabitId, isEmpty);
+      },
+    );
 
     testWidgets('permission denial shows fallback and keeps reminder off', (
       final WidgetTester tester,
@@ -805,6 +932,61 @@ void main() {
         1200,
       );
     });
+
+    testWidgets(
+      'create form can save enabled reminder while global reminders are off',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository();
+        final _FakeAppSettingsRepository appSettingsRepository =
+            _FakeAppSettingsRepository(
+              seedSettings: const AppSettings(remindersEnabled: false),
+            );
+        final _FakeHabitReminderRepository reminderRepository =
+            _FakeHabitReminderRepository();
+        final _FakeReminderNotificationScheduler notificationScheduler =
+            _FakeReminderNotificationScheduler()
+              ..notificationsAllowed = false
+              ..grantPermissionOnRequest = false;
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+          appSettingsRepository: appSettingsRepository,
+          habitReminderRepository: reminderRepository,
+          notificationScheduler: notificationScheduler,
+        );
+
+        await tester.tap(
+          find.byKey(const Key('home_create_first_habit_button')),
+        );
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const Key('habit_form_name_field')),
+          'Read Daily',
+        );
+        final Finder reminderToggleFinder = find.byKey(
+          const Key('habit_form_reminder_toggle'),
+        );
+        await tester.ensureVisible(reminderToggleFinder);
+        await tester.tap(reminderToggleFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('habit_form_submit_button')));
+        await tester.pumpAndSettle();
+
+        final Habit createdHabit = (await repository.listActiveHabits()).single;
+        final HabitReminder? reminder = await reminderRepository
+            .findReminderByHabitId(createdHabit.id);
+        expect(reminder, isNotNull);
+        expect(reminder?.isEnabled, isTrue);
+        expect(reminder?.reminderTimeMinutes, 1200);
+        expect(notificationScheduler.permissionRequestCount, 0);
+        expect(
+          notificationScheduler.scheduledMinutesByHabitId[createdHabit.id],
+          isNull,
+        );
+      },
+    );
 
     testWidgets('edit form preserves existing reminder row when turned off', (
       final WidgetTester tester,

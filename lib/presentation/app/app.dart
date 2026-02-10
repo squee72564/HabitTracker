@@ -86,6 +86,18 @@ class _HabitTrackerAppState extends State<HabitTrackerApp> {
   Future<void> _syncConfiguredReminders() async {
     try {
       await _notificationScheduler.initialize();
+      final AppSettings settings = await _appSettingsRepository.loadSettings();
+      final List<HabitReminder> reminders = await _habitReminderRepository
+          .listReminders();
+      if (!settings.remindersEnabled) {
+        for (final HabitReminder reminder in reminders) {
+          await _notificationScheduler.cancelReminder(
+            habitId: reminder.habitId,
+          );
+        }
+        return;
+      }
+
       final bool notificationsAllowed = await _notificationScheduler
           .areNotificationsAllowed();
       if (!notificationsAllowed) {
@@ -97,8 +109,6 @@ class _HabitTrackerAppState extends State<HabitTrackerApp> {
       final Map<String, Habit> habitsById = <String, Habit>{
         for (final Habit habit in activeHabits) habit.id: habit,
       };
-      final List<HabitReminder> reminders = await _habitReminderRepository
-          .listReminders();
       for (final HabitReminder reminder in reminders) {
         final Habit? habit = habitsById[reminder.habitId];
         if (habit == null || !reminder.isEnabled) {

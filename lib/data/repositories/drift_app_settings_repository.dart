@@ -19,7 +19,11 @@ class DriftAppSettingsRepository implements AppSettingsRepository {
     if (row == null) {
       return AppSettings.defaults;
     }
-    return AppSettings(weekStart: row.weekStart, timeFormat: row.timeFormat);
+    return AppSettings(
+      weekStart: row.weekStart,
+      timeFormat: row.timeFormat,
+      remindersEnabled: row.remindersEnabled,
+    );
   }
 
   @override
@@ -31,6 +35,7 @@ class DriftAppSettingsRepository implements AppSettingsRepository {
             singletonId: const Value<int>(_singletonId),
             weekStart: Value<AppWeekStart>(settings.weekStart),
             timeFormat: Value<AppTimeFormat>(settings.timeFormat),
+            remindersEnabled: Value<bool>(settings.remindersEnabled),
           ),
           mode: InsertMode.insertOrReplace,
         );

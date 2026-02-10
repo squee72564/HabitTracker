@@ -13,6 +13,9 @@ class AppSettingsTable extends Table {
       .map(const AppTimeFormatConverter())
       .withDefault(const Constant('12h'))();
 
+  BoolColumn get remindersEnabled =>
+      boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column<Object>> get primaryKey => <Column<Object>>{singletonId};
 }

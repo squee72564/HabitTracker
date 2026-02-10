@@ -1052,8 +1052,28 @@ class $AppSettingsTableTable extends AppSettingsTable
     requiredDuringInsert: false,
     defaultValue: const Constant('12h'),
   ).withConverter<AppTimeFormat>($AppSettingsTableTable.$convertertimeFormat);
+  static const VerificationMeta _remindersEnabledMeta = const VerificationMeta(
+    'remindersEnabled',
+  );
   @override
-  List<GeneratedColumn> get $columns => [singletonId, weekStart, timeFormat];
+  late final GeneratedColumn<bool> remindersEnabled = GeneratedColumn<bool>(
+    'reminders_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("reminders_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    singletonId,
+    weekStart,
+    timeFormat,
+    remindersEnabled,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1072,6 +1092,15 @@ class $AppSettingsTableTable extends AppSettingsTable
         singletonId.isAcceptableOrUnknown(
           data['singleton_id']!,
           _singletonIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reminders_enabled')) {
+      context.handle(
+        _remindersEnabledMeta,
+        remindersEnabled.isAcceptableOrUnknown(
+          data['reminders_enabled']!,
+          _remindersEnabledMeta,
         ),
       );
     }
@@ -1100,6 +1129,10 @@ class $AppSettingsTableTable extends AppSettingsTable
           data['${effectivePrefix}time_format'],
         )!,
       ),
+      remindersEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}reminders_enabled'],
+      )!,
     );
   }
 
@@ -1118,10 +1151,12 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
   final int singletonId;
   final AppWeekStart weekStart;
   final AppTimeFormat timeFormat;
+  final bool remindersEnabled;
   const AppSettingsRow({
     required this.singletonId,
     required this.weekStart,
     required this.timeFormat,
+    required this.remindersEnabled,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1137,6 +1172,7 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
         $AppSettingsTableTable.$convertertimeFormat.toSql(timeFormat),
       );
     }
+    map['reminders_enabled'] = Variable<bool>(remindersEnabled);
     return map;
   }
 
@@ -1145,6 +1181,7 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       singletonId: Value(singletonId),
       weekStart: Value(weekStart),
       timeFormat: Value(timeFormat),
+      remindersEnabled: Value(remindersEnabled),
     );
   }
 
@@ -1157,6 +1194,7 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       singletonId: serializer.fromJson<int>(json['singletonId']),
       weekStart: serializer.fromJson<AppWeekStart>(json['weekStart']),
       timeFormat: serializer.fromJson<AppTimeFormat>(json['timeFormat']),
+      remindersEnabled: serializer.fromJson<bool>(json['remindersEnabled']),
     );
   }
   @override
@@ -1166,6 +1204,7 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       'singletonId': serializer.toJson<int>(singletonId),
       'weekStart': serializer.toJson<AppWeekStart>(weekStart),
       'timeFormat': serializer.toJson<AppTimeFormat>(timeFormat),
+      'remindersEnabled': serializer.toJson<bool>(remindersEnabled),
     };
   }
 
@@ -1173,10 +1212,12 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     int? singletonId,
     AppWeekStart? weekStart,
     AppTimeFormat? timeFormat,
+    bool? remindersEnabled,
   }) => AppSettingsRow(
     singletonId: singletonId ?? this.singletonId,
     weekStart: weekStart ?? this.weekStart,
     timeFormat: timeFormat ?? this.timeFormat,
+    remindersEnabled: remindersEnabled ?? this.remindersEnabled,
   );
   AppSettingsRow copyWithCompanion(AppSettingsTableCompanion data) {
     return AppSettingsRow(
@@ -1187,6 +1228,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       timeFormat: data.timeFormat.present
           ? data.timeFormat.value
           : this.timeFormat,
+      remindersEnabled: data.remindersEnabled.present
+          ? data.remindersEnabled.value
+          : this.remindersEnabled,
     );
   }
 
@@ -1195,45 +1239,53 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     return (StringBuffer('AppSettingsRow(')
           ..write('singletonId: $singletonId, ')
           ..write('weekStart: $weekStart, ')
-          ..write('timeFormat: $timeFormat')
+          ..write('timeFormat: $timeFormat, ')
+          ..write('remindersEnabled: $remindersEnabled')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(singletonId, weekStart, timeFormat);
+  int get hashCode =>
+      Object.hash(singletonId, weekStart, timeFormat, remindersEnabled);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AppSettingsRow &&
           other.singletonId == this.singletonId &&
           other.weekStart == this.weekStart &&
-          other.timeFormat == this.timeFormat);
+          other.timeFormat == this.timeFormat &&
+          other.remindersEnabled == this.remindersEnabled);
 }
 
 class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsRow> {
   final Value<int> singletonId;
   final Value<AppWeekStart> weekStart;
   final Value<AppTimeFormat> timeFormat;
+  final Value<bool> remindersEnabled;
   const AppSettingsTableCompanion({
     this.singletonId = const Value.absent(),
     this.weekStart = const Value.absent(),
     this.timeFormat = const Value.absent(),
+    this.remindersEnabled = const Value.absent(),
   });
   AppSettingsTableCompanion.insert({
     this.singletonId = const Value.absent(),
     this.weekStart = const Value.absent(),
     this.timeFormat = const Value.absent(),
+    this.remindersEnabled = const Value.absent(),
   });
   static Insertable<AppSettingsRow> custom({
     Expression<int>? singletonId,
     Expression<String>? weekStart,
     Expression<String>? timeFormat,
+    Expression<bool>? remindersEnabled,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
       if (weekStart != null) 'week_start': weekStart,
       if (timeFormat != null) 'time_format': timeFormat,
+      if (remindersEnabled != null) 'reminders_enabled': remindersEnabled,
     });
   }
 
@@ -1241,11 +1293,13 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsRow> {
     Value<int>? singletonId,
     Value<AppWeekStart>? weekStart,
     Value<AppTimeFormat>? timeFormat,
+    Value<bool>? remindersEnabled,
   }) {
     return AppSettingsTableCompanion(
       singletonId: singletonId ?? this.singletonId,
       weekStart: weekStart ?? this.weekStart,
       timeFormat: timeFormat ?? this.timeFormat,
+      remindersEnabled: remindersEnabled ?? this.remindersEnabled,
     );
   }
 
@@ -1265,6 +1319,9 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsRow> {
         $AppSettingsTableTable.$convertertimeFormat.toSql(timeFormat.value),
       );
     }
+    if (remindersEnabled.present) {
+      map['reminders_enabled'] = Variable<bool>(remindersEnabled.value);
+    }
     return map;
   }
 
@@ -1273,7 +1330,8 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsRow> {
     return (StringBuffer('AppSettingsTableCompanion(')
           ..write('singletonId: $singletonId, ')
           ..write('weekStart: $weekStart, ')
-          ..write('timeFormat: $timeFormat')
+          ..write('timeFormat: $timeFormat, ')
+          ..write('remindersEnabled: $remindersEnabled')
           ..write(')'))
         .toString();
   }
@@ -2434,12 +2492,14 @@ typedef $$AppSettingsTableTableCreateCompanionBuilder =
       Value<int> singletonId,
       Value<AppWeekStart> weekStart,
       Value<AppTimeFormat> timeFormat,
+      Value<bool> remindersEnabled,
     });
 typedef $$AppSettingsTableTableUpdateCompanionBuilder =
     AppSettingsTableCompanion Function({
       Value<int> singletonId,
       Value<AppWeekStart> weekStart,
       Value<AppTimeFormat> timeFormat,
+      Value<bool> remindersEnabled,
     });
 
 class $$AppSettingsTableTableFilterComposer
@@ -2467,6 +2527,11 @@ class $$AppSettingsTableTableFilterComposer
     column: $table.timeFormat,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<bool> get remindersEnabled => $composableBuilder(
+    column: $table.remindersEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$AppSettingsTableTableOrderingComposer
@@ -2490,6 +2555,11 @@ class $$AppSettingsTableTableOrderingComposer
 
   ColumnOrderings<String> get timeFormat => $composableBuilder(
     column: $table.timeFormat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get remindersEnabled => $composableBuilder(
+    column: $table.remindersEnabled,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -2516,6 +2586,11 @@ class $$AppSettingsTableTableAnnotationComposer
         column: $table.timeFormat,
         builder: (column) => column,
       );
+
+  GeneratedColumn<bool> get remindersEnabled => $composableBuilder(
+    column: $table.remindersEnabled,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableTableManager
@@ -2558,20 +2633,24 @@ class $$AppSettingsTableTableTableManager
                 Value<int> singletonId = const Value.absent(),
                 Value<AppWeekStart> weekStart = const Value.absent(),
                 Value<AppTimeFormat> timeFormat = const Value.absent(),
+                Value<bool> remindersEnabled = const Value.absent(),
               }) => AppSettingsTableCompanion(
                 singletonId: singletonId,
                 weekStart: weekStart,
                 timeFormat: timeFormat,
+                remindersEnabled: remindersEnabled,
               ),
           createCompanionCallback:
               ({
                 Value<int> singletonId = const Value.absent(),
                 Value<AppWeekStart> weekStart = const Value.absent(),
                 Value<AppTimeFormat> timeFormat = const Value.absent(),
+                Value<bool> remindersEnabled = const Value.absent(),
               }) => AppSettingsTableCompanion.insert(
                 singletonId: singletonId,
                 weekStart: weekStart,
                 timeFormat: timeFormat,
+                remindersEnabled: remindersEnabled,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

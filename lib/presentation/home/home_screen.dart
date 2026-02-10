@@ -261,6 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
           existingHabitNames: _habits.map((final Habit h) => h.name),
           initialReminder: initialReminder,
           timeFormat: _appSettings.timeFormat,
+          remindersGloballyEnabled: _appSettings.remindersEnabled,
           notificationScheduler: widget.notificationScheduler,
         );
       },
@@ -315,6 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
           existingHabitNames: _habits.map((final Habit h) => h.name),
           initialReminder: initialReminder,
           timeFormat: _appSettings.timeFormat,
+          remindersGloballyEnabled: _appSettings.remindersEnabled,
           notificationScheduler: widget.notificationScheduler,
         );
       },
@@ -390,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
         await widget.habitReminderRepository.saveReminder(reminder);
       }
 
-      if (result.reminderEnabled) {
+      if (result.reminderEnabled && _appSettings.remindersEnabled) {
         await widget.notificationScheduler.scheduleDailyReminder(
           habitId: habit.id,
           habitName: habit.name,
@@ -1504,6 +1506,7 @@ class _HabitFormDialog extends StatefulWidget {
     required this.existingHabitNames,
     required this.initialReminder,
     required this.timeFormat,
+    required this.remindersGloballyEnabled,
     required this.notificationScheduler,
     this.initialHabit,
   });
@@ -1512,6 +1515,7 @@ class _HabitFormDialog extends StatefulWidget {
   final Iterable<String> existingHabitNames;
   final _HabitFormInitialReminder initialReminder;
   final AppTimeFormat timeFormat;
+  final bool remindersGloballyEnabled;
   final ReminderNotificationScheduler notificationScheduler;
 
   @override
@@ -1712,6 +1716,13 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
                 const SizedBox(height: AppSpacing.md),
                 Text('Reminder', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: AppSpacing.xs),
+                if (!widget.remindersGloballyEnabled) ...<Widget>[
+                  Text(
+                    'Global reminders are off. Per-habit settings will be saved and applied when global reminders are enabled again.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                ],
                 SwitchListTile(
                   key: const Key('habit_form_reminder_toggle'),
                   dense: true,
@@ -1878,6 +1889,12 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
     if (!enabled) {
       setState(() {
         _isReminderEnabled = false;
+      });
+      return;
+    }
+    if (!widget.remindersGloballyEnabled) {
+      setState(() {
+        _isReminderEnabled = true;
       });
       return;
     }
