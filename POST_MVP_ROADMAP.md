@@ -19,26 +19,59 @@ This roadmap extends the shipped MVP with UX and control improvements discovered
 
 ## Stage P0: Product Clarifications and UX Contracts
 
-- [ ] P0.1 Define archive vs delete policy in product docs:
+- [x] P0.1 Define archive vs delete policy in product docs:
   - Archive behavior and visibility.
   - Whether permanent delete is supported and from where.
   - Whether unarchive is user-accessible in-app.
-- [ ] P0.2 Define relapse undo semantics:
+- [x] P0.2 Define relapse undo semantics:
   - Undo latest relapse only vs undo specific relapse.
   - Time window/guardrails for undo.
   - UX language for history-changing actions.
-- [ ] P0.3 Define grid tap interaction contract:
+- [x] P0.3 Define grid tap interaction contract:
   - Positive mode: add/remove completion for selected day.
   - Negative mode: add/remove relapse marker for selected day.
   - Allowed day range (historical/future) and mode-specific constraints.
-- [ ] P0.4 Define color strategy:
+- [x] P0.4 Define color strategy:
   - Expanded default palette requirements.
   - Custom color picker constraints (contrast, storage format, fallback rules).
-- [ ] P0.5 Define icon catalog strategy:
+- [x] P0.5 Define icon catalog strategy:
   - Source and size of icon set.
   - Pagination/virtualization requirements.
   - Selection behavior on small screens and large text scale.
-- [ ] P0.6 Stage exit check: all contracts approved and reflected in docs before implementation stages begin.
+- [x] P0.6 Stage exit check: all contracts approved and reflected in docs before implementation stages begin.
+
+### P0 Locked Contracts (2026-02-10)
+
+1. Archive/Delete/Unarchive policy
+   - Archiving remains the default removal path from active lists.
+   - Archived habits are hidden from Home but retained with full history.
+   - In-app unarchive is required via an explicit archived habits management surface.
+   - Permanent delete is supported only for archived habits and is a separate destructive action.
+   - Permanent delete removes the habit and all linked data (events and reminder preference rows) in one transaction.
+   - Permanent delete requires stronger confirmation than archive/unarchive.
+2. Relapse undo semantics
+   - Undo is limited to the latest relapse event for a habit.
+   - Undo specific historical relapses is not part of the quick action path.
+   - No time window is enforced; the guardrail is "latest relapse only."
+   - UX language must be explicit that history is being changed (for example, "Undo latest relapse").
+3. Grid tap interaction contract
+   - Grid cells are interactive only for past or current local days; future days are read-only.
+   - Positive mode: tap toggles completion for the selected `localDayKey` (add if absent, remove if present).
+   - Negative mode: tap toggles a relapse marker for the selected `localDayKey` (add if absent, clear day marker if present).
+   - Positive edits are allowed from habit creation day through today.
+   - Negative edits are allowed from today back to 7 local days, matching the existing relapse backdate guardrail.
+4. Color strategy
+   - Keep a curated expanded default palette with accessible contrast coverage across light and dark foregrounds.
+   - Add optional custom color selection in create/edit flow.
+   - Persist colors as uppercase `#RRGGBB` hex strings.
+   - Existing stored colors must render exactly as saved; no lossy coercion to nearest preset.
+   - Invalid stored hex values fall back to the app brand color for rendering safety.
+5. Icon catalog strategy
+   - Use Material `Icons` as the source for post-MVP icon expansion.
+   - Replace chip list with icon-only grid selection.
+   - Paginate by fixed pages and support horizontal page swiping once catalog size exceeds viewport.
+   - Grid must adapt columns by available width and remain usable at large text scales.
+   - Icon-only controls must retain accessibility labels/semantics for screen readers.
 
 ## Stage P1: Habit Form UX Upgrade (Icons + Colors)
 

@@ -97,3 +97,33 @@ Using event history avoids edge-case bugs and lets you recompute streaks reliabl
 4. Monthly grid renders correctly for both modes using persisted day keys.
 5. Data persists across app restarts.
 6. Works on common Android screen sizes without layout breakage.
+
+## Post-MVP Locked Contracts (P0, 2026-02-10)
+
+1. Archive, Unarchive, Delete
+2. Archive remains the default non-destructive removal path.
+3. Archived habits are hidden from Home but keep full event history.
+4. In-app archived management and unarchive are required.
+5. Permanent delete is allowed only from archived management and must require stronger confirmation.
+6. Permanent delete removes the habit and all related local data in one transaction.
+7. Relapse Undo
+8. Quick undo supports latest relapse only (not arbitrary historical relapse selection).
+9. No time-limit window is required; the "latest relapse only" rule is the guardrail.
+10. User-facing copy must explicitly communicate history change (for example, "Undo latest relapse").
+11. Grid Tap Editing
+12. Future grid days are non-editable.
+13. Positive mode grid taps toggle completion for that `localDayKey`.
+14. Positive grid edits are allowed from habit creation day through today.
+15. Negative mode grid taps toggle relapse day markers for that `localDayKey`.
+16. Negative grid edits are limited to today and the previous 7 local days.
+17. Color Strategy
+18. Expand curated default palette.
+19. Add optional custom color input in habit form.
+20. Persist color as uppercase `#RRGGBB` hex.
+21. Render existing stored colors as-is; do not remap to nearest preset.
+22. Invalid stored color hex falls back to brand color for rendering safety.
+23. Icon Strategy
+24. Source icon catalog from Flutter Material `Icons`.
+25. Use icon-only grid selection with responsive columns.
+26. Add page-based browsing with horizontal swiping when needed.
+27. Preserve accessibility semantics/labels for icon-only controls.

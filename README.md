@@ -58,6 +58,23 @@ Use `RELEASE_CHECKLIST.md` for pre-release verification and final smoke-test tra
 - Historical day buckets are immutable by design and will not rebucket after timezone changes.
 - Device clock/timezone is trusted at event creation time; manual clock skew can affect captured timestamps/day keys.
 
+## Post-MVP Contracts (Locked for Implementation)
+
+- Archive is the default removal path; archived habits are hidden from Home and can be unarchived in-app.
+- Permanent delete is supported only as a separate destructive action for archived habits and removes linked local data.
+- Relapse undo is limited to the latest relapse event for a habit and must use explicit "history-changing" UX copy.
+- Grid day editing is past/present only:
+  - Positive: toggle completion from habit creation day through today.
+  - Negative: toggle relapse markers for today and the previous 7 local days.
+- Color strategy:
+  - Expanded preset palette plus optional custom color.
+  - Persist colors as uppercase `#RRGGBB`.
+  - Preserve stored color fidelity; fallback to brand color only for invalid hex.
+- Icon strategy:
+  - Expanded Material icon catalog.
+  - Icon-only responsive grid with horizontal page swiping for large sets.
+  - Accessibility labels remain required for icon-only controls.
+
 ## Out of Scope
 
 - Cloud sync/auth/multi-device data.
