@@ -104,18 +104,18 @@ This roadmap extends the shipped MVP with UX and control improvements discovered
 
 ## Stage P3: Data Lifecycle Controls (Reset, Archive, Unarchive, Delete)
 
-- [ ] P3.1 Add in-app "Reset all data" action in Settings.
-- [ ] P3.2 Require typed confirmation phrase for destructive reset execution.
-- [ ] P3.3 Implement transactional data wipe across habits, events, reminders, and app settings.
-- [ ] P3.4 Add post-reset UX confirmation and safe app state reinitialization.
-- [ ] P3.5 Add explicit archive management UI:
+- [x] P3.1 Add in-app "Reset all data" action in Settings.
+- [x] P3.2 Require typed confirmation phrase for destructive reset execution.
+- [x] P3.3 Implement transactional data wipe across habits, events, reminders, and app settings.
+- [x] P3.4 Add post-reset UX confirmation and safe app state reinitialization.
+- [x] P3.5 Add explicit archive management UI:
   - View archived habits.
   - Unarchive action.
-- [ ] P3.6 Clarify and implement permanent delete policy:
+- [x] P3.6 Clarify and implement permanent delete policy:
   - If supported, add a separate destructive path with stronger confirmation.
   - If not supported, document archive-only behavior clearly in-app.
-- [ ] P3.7 Add tests for reset and archive/unarchive/delete lifecycle behavior, including restart persistence.
-- [ ] P3.8 Stage exit check: destructive actions require deliberate confirmation and leave no ambiguous state.
+- [x] P3.7 Add tests for reset and archive/unarchive/delete lifecycle behavior, including restart persistence.
+- [x] P3.8 Stage exit check: destructive actions require deliberate confirmation and leave no ambiguous state.
 
 ## Stage P4: Tracking Interaction Expansion (Undo Relapse + Grid Day Editing)
 
