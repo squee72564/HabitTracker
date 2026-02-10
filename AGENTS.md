@@ -5,13 +5,18 @@ This repository is a Flutter project for an Android-first habit tracker MVP. The
 
 ## Project Structure
 Use only the high-signal paths below during normal agent work:
-- `lib/`: application source code (currently minimal scaffold in `lib/main.dart`; add new feature code here).
-- `test/`: unit/widget tests (starter test in `test/widget_test.dart`).
-- `android/`: Android platform config and build settings.
-- `pubspec.yaml`: dependencies, assets, and Flutter metadata.
-- `analysis_options.yaml`: lint/analyzer rules.
-- `MVP.md`: product constraints and behavior definitions.
-- `ROADMAP.md`: staged implementation checklist.
+- `lib/`: primary app code.
+  - `core/`: shared app primitives (theme, logging, app bootstrap/error boundary).
+  - `domain/`: entities, validation, and time/streak business logic.
+  - `data/`: Drift/SQLite persistence and notification scheduling adapters.
+  - `presentation/`: UI screens/widgets and interaction flows.
+- `test/`: automated coverage aligned to runtime structure.
+  - `domain/`: pure logic and time-model unit tests.
+  - `data/`: repository/database behavior tests.
+  - `presentation/`: widget and flow regressions.
+- `android/`: Android app config, manifests/resources, Gradle build/signing setup.
+- `tool/`: local helper scripts (for example CI convenience commands).
+- Root product/docs/config files: `MVP.md`, `ROADMAP.md`, `README.md`, `pubspec.yaml`, `analysis_options.yaml`.
 
 Platform folders like `ios/`, `web/`, `macos/`, `linux/`, and `windows/` are generated scaffolding unless a task explicitly targets those platforms.
 
