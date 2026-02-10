@@ -91,16 +91,16 @@ This roadmap extends the shipped MVP with UX and control improvements discovered
 
 - [x] P2.1 Add per-habit reminder toggle and time controls into create/edit habit flow.
 - [x] P2.2 Decide and implement edit-mode behavior for reminder defaults vs existing reminder rows.
-- [ ] P2.3 Add global reminders master toggle in Settings.
-- [ ] P2.4 Ensure global toggle disables scheduling while preserving per-habit preferences for later re-enable.
-- [ ] P2.5 Keep week-start/time-format settings behavior unchanged unless intentionally redesigned.
-- [ ] P2.6 Update startup reminder sync logic to honor global toggle.
-- [ ] P2.7 Add migration/default handling for global reminder setting persistence.
-- [ ] P2.8 Add tests for:
+- [x] P2.3 Add global reminders master toggle in Settings.
+- [x] P2.4 Ensure global toggle disables scheduling while preserving per-habit preferences for later re-enable.
+- [x] P2.5 Keep week-start/time-format settings behavior unchanged unless intentionally redesigned.
+- [x] P2.6 Update startup reminder sync logic to honor global toggle.
+- [x] P2.7 Add migration/default handling for global reminder setting persistence.
+- [x] P2.8 Add tests for:
   - Reminder creation via habit form.
   - Permission flows.
   - Global on/off interactions with per-habit reminders.
-- [ ] P2.9 Stage exit check: reminders are predictable from both habit form and settings entry points.
+- [x] P2.9 Stage exit check: reminders are predictable from both habit form and settings entry points.
 
 ## Stage P3: Data Lifecycle Controls (Reset, Archive, Unarchive, Delete)
 
