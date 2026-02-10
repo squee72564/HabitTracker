@@ -101,14 +101,14 @@ This roadmap is derived from `MVP.md` and is designed to be completed in small, 
 
 ## Stage 8: QA, Hardening, and Accessibility
 
-- [ ] R8.1 Add integration test covering create habit -> log event -> streak update -> grid update.
-- [ ] R8.2 Add regression test for timezone change scenario.
-- [ ] R8.3 Add regression test for undo and re-log behavior.
-- [ ] R8.4 Validate text scaling and overflow safety for long habit names.
-- [ ] R8.5 Validate color contrast in all habit card states.
-- [ ] R8.6 Run performance check with realistic event volume (at least 12 months of events).
-- [ ] R8.7 Conduct manual Android smoke test on emulator and one physical device.
-- [ ] R8.8 Stage 8 exit check: no P1/P2 bugs and acceptance criteria are satisfied.
+- [x] R8.1 Add integration test covering create habit -> log event -> streak update -> grid update.
+- [x] R8.2 Add regression test for timezone change scenario.
+- [x] R8.3 Add regression test for undo and re-log behavior.
+- [x] R8.4 Validate text scaling and overflow safety for long habit names.
+- [x] R8.5 Validate color contrast in all habit card states.
+- [x] R8.6 Run performance check with realistic event volume (at least 12 months of events).
+- [x] R8.7 Conduct manual Android smoke test on emulator and one physical device.
+- [x] R8.8 Stage 8 exit check: no P1/P2 bugs and acceptance criteria are satisfied.
 
 ## Stage 9: Release Preparation (Android MVP)
 
