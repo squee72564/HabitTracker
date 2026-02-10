@@ -472,7 +472,6 @@ void main() {
         clock: () => DateTime(2026, 2, 15, 9),
       );
 
-      expect(find.byKey(const Key('home_grid_legend')), findsOneWidget);
       expect(find.text('February 2026'), findsOneWidget);
       expect(
         find.byKey(

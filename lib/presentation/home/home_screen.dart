@@ -963,10 +963,6 @@ class _HomeScreenState extends State<HomeScreen> {
           onNextMonth: _showNextMonth,
           onJumpToCurrentMonth: _jumpToCurrentMonth,
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: _GridLegend(),
-        ),
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(
@@ -1124,89 +1120,6 @@ class _MonthNavigationBar extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GridLegend extends StatelessWidget {
-  const _GridLegend();
-
-  @override
-  Widget build(final BuildContext context) {
-    return Container(
-      key: const Key('home_grid_legend'),
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('Legend', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: AppSpacing.xs),
-          const Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xs,
-            children: <Widget>[
-              _LegendItem(
-                tooltip: 'Positive: completed for that day',
-                color: Color(0xFF2E7D32),
-                label: 'Done',
-              ),
-              _LegendItem(
-                tooltip: 'Positive: no completion logged for that day',
-                color: Color(0xFFF2B8B5),
-                label: 'Missed',
-              ),
-              _LegendItem(
-                tooltip: 'Future day for both habit modes',
-                color: Color(0xFFE8EAE6),
-                label: 'Future',
-              ),
-              _LegendItem(
-                tooltip: 'Negative: relapse logged on that day',
-                color: Color(0xFFC62828),
-                label: 'Relapse',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LegendItem extends StatelessWidget {
-  const _LegendItem({
-    required this.tooltip,
-    required this.color,
-    required this.label,
-  });
-
-  final String tooltip;
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(final BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(AppRadii.sm),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );
