@@ -89,8 +89,8 @@ This roadmap extends the shipped MVP with UX and control improvements discovered
 
 ## Stage P2: Reminder UX Refactor (Per-Habit + Global Control)
 
-- [ ] P2.1 Add per-habit reminder toggle and time controls into create/edit habit flow.
-- [ ] P2.2 Decide and implement edit-mode behavior for reminder defaults vs existing reminder rows.
+- [x] P2.1 Add per-habit reminder toggle and time controls into create/edit habit flow.
+- [x] P2.2 Decide and implement edit-mode behavior for reminder defaults vs existing reminder rows.
 - [ ] P2.3 Add global reminders master toggle in Settings.
 - [ ] P2.4 Ensure global toggle disables scheduling while preserving per-habit preferences for later re-enable.
 - [ ] P2.5 Keep week-start/time-format settings behavior unchanged unless intentionally redesigned.
