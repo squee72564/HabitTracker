@@ -493,11 +493,16 @@ class _HomeScreenState extends State<HomeScreen> {
       if (habit.mode == HabitMode.positive) {
         await _togglePositiveCompletionForToday(habit);
       } else {
-        await _logRelapseAtLocalDateTime(
-          habit: habit,
-          localDateTime: widget.clock(),
-          feedbackMessage: 'Relapse logged.',
-        );
+        final HabitEvent? latestRelapse = _latestRelapseEventForHabit(habit.id);
+        if (latestRelapse != null) {
+          await _undoLatestRelapse(habit: habit, latestRelapse: latestRelapse);
+        } else {
+          await _logRelapseAtLocalDateTime(
+            habit: habit,
+            localDateTime: widget.clock(),
+            feedbackMessage: 'Relapse logged.',
+          );
+        }
       }
     } on Object catch (error, stackTrace) {
       _logger.error(
@@ -522,12 +527,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _togglePositiveCompletionForToday(final Habit habit) async {
     final DateTime nowLocal = widget.clock();
-    final String todayLocalDayKey = toLocalDayKey(nowLocal);
+    await _togglePositiveCompletionForDay(
+      habit: habit,
+      localDayKey: toLocalDayKey(nowLocal),
+      eventLocalDateTime: nowLocal,
+      addSuccessMessage: 'Marked done for today.',
+      removeSuccessMessage: 'Today marked as not done.',
+      duplicateMessage: 'Already marked done for today.',
+    );
+  }
+
+  Future<void> _togglePositiveCompletionForDay({
+    required final Habit habit,
+    required final String localDayKey,
+    required final DateTime eventLocalDateTime,
+    required final String addSuccessMessage,
+    required final String removeSuccessMessage,
+    required final String duplicateMessage,
+  }) async {
     final List<HabitEvent> eventsOnDay = await widget.habitEventRepository
-        .listEventsForHabitOnDay(
-          habitId: habit.id,
-          localDayKey: todayLocalDayKey,
-        );
+        .listEventsForHabitOnDay(habitId: habit.id, localDayKey: localDayKey);
     final List<HabitEvent> completionEvents = eventsOnDay
         .where(
           (final HabitEvent event) =>
@@ -536,13 +555,14 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList(growable: false);
 
     if (completionEvents.isNotEmpty) {
-      final HabitEvent eventToDelete = completionEvents.last;
-      await widget.habitEventRepository.deleteEventById(eventToDelete.id);
+      for (final HabitEvent completion in completionEvents) {
+        await widget.habitEventRepository.deleteEventById(completion.id);
+      }
       await _refreshTrackingForHabit(habit);
       if (!mounted) {
         return;
       }
-      _showSnackBar('Today marked as not done.');
+      _showSnackBar(removeSuccessMessage);
       return;
     }
 
@@ -550,9 +570,9 @@ class _HomeScreenState extends State<HomeScreen> {
       id: _generateHabitEventId(),
       habitId: habit.id,
       eventType: HabitEventType.complete,
-      occurredAtUtc: nowLocal.toUtc(),
-      localDayKey: todayLocalDayKey,
-      tzOffsetMinutesAtEvent: captureTzOffsetMinutesAtEvent(nowLocal),
+      occurredAtUtc: eventLocalDateTime.toUtc(),
+      localDayKey: localDayKey,
+      tzOffsetMinutesAtEvent: captureTzOffsetMinutesAtEvent(eventLocalDateTime),
     );
 
     try {
@@ -562,7 +582,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) {
         return;
       }
-      _showSnackBar('Already marked done for today.');
+      _showSnackBar(duplicateMessage);
       return;
     }
 
@@ -570,7 +590,238 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) {
       return;
     }
-    _showSnackBar('Marked done for today.');
+    _showSnackBar(addSuccessMessage);
+  }
+
+  Future<void> _toggleNegativeRelapseForDay({
+    required final Habit habit,
+    required final String localDayKey,
+    required final DateTime eventLocalDateTime,
+    required final String addSuccessMessage,
+    required final String removeSuccessMessage,
+  }) async {
+    final List<HabitEvent> eventsOnDay = await widget.habitEventRepository
+        .listEventsForHabitOnDay(habitId: habit.id, localDayKey: localDayKey);
+    final List<HabitEvent> relapseEvents = eventsOnDay
+        .where(
+          (final HabitEvent event) => event.eventType == HabitEventType.relapse,
+        )
+        .toList(growable: false);
+
+    if (relapseEvents.isNotEmpty) {
+      for (final HabitEvent relapse in relapseEvents) {
+        await widget.habitEventRepository.deleteEventById(relapse.id);
+      }
+      await _refreshTrackingForHabit(habit);
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar(removeSuccessMessage);
+      return;
+    }
+
+    final HabitEvent relapse = HabitEvent(
+      id: _generateHabitEventId(),
+      habitId: habit.id,
+      eventType: HabitEventType.relapse,
+      occurredAtUtc: eventLocalDateTime.toUtc(),
+      localDayKey: localDayKey,
+      tzOffsetMinutesAtEvent: captureTzOffsetMinutesAtEvent(eventLocalDateTime),
+    );
+    await widget.habitEventRepository.saveEvent(relapse);
+
+    await _refreshTrackingForHabit(habit);
+    if (!mounted) {
+      return;
+    }
+    _showSnackBar(addSuccessMessage);
+  }
+
+  HabitEvent? _latestRelapseEventForHabit(final String habitId) {
+    final List<HabitEvent>? events = _eventsByHabitId[habitId];
+    if (events == null || events.isEmpty) {
+      return null;
+    }
+
+    HabitEvent? latestRelapse;
+    for (final HabitEvent event in events) {
+      if (event.eventType != HabitEventType.relapse) {
+        continue;
+      }
+      if (latestRelapse == null ||
+          event.occurredAtUtc.isAfter(latestRelapse.occurredAtUtc)) {
+        latestRelapse = event;
+      }
+    }
+    return latestRelapse;
+  }
+
+  Future<void> _undoLatestRelapse({
+    required final Habit habit,
+    required final HabitEvent latestRelapse,
+  }) async {
+    await widget.habitEventRepository.deleteEventById(latestRelapse.id);
+    await _refreshTrackingForHabit(habit);
+    if (!mounted) {
+      return;
+    }
+    _showSnackBar('Latest relapse undone.');
+  }
+
+  Future<void> _onGridCellTap({
+    required final Habit habit,
+    required final HabitMonthCell cell,
+  }) async {
+    if (_trackingHabitIds.contains(habit.id)) {
+      return;
+    }
+
+    final DateTime nowLocal = widget.clock();
+    final _GridEditGuardResult guardResult = _evaluateGridEditGuard(
+      habit: habit,
+      localDayKey: cell.localDayKey,
+      nowLocal: nowLocal,
+    );
+    if (!guardResult.isAllowed) {
+      if (mounted) {
+        _showSnackBar(guardResult.feedbackMessage!);
+      }
+      return;
+    }
+
+    setState(() {
+      _trackingHabitIds = <String>{..._trackingHabitIds, habit.id};
+    });
+
+    try {
+      final DateTime eventLocalDateTime = _resolveGridEventLocalDateTime(
+        localDayKey: cell.localDayKey,
+        nowLocal: nowLocal,
+      );
+      if (habit.mode == HabitMode.positive) {
+        await _togglePositiveCompletionForDay(
+          habit: habit,
+          localDayKey: cell.localDayKey,
+          eventLocalDateTime: eventLocalDateTime,
+          addSuccessMessage: 'Completion added for ${cell.localDayKey}.',
+          removeSuccessMessage: 'Completion removed for ${cell.localDayKey}.',
+          duplicateMessage: 'Already marked done for ${cell.localDayKey}.',
+        );
+      } else {
+        await _toggleNegativeRelapseForDay(
+          habit: habit,
+          localDayKey: cell.localDayKey,
+          eventLocalDateTime: eventLocalDateTime,
+          addSuccessMessage: 'Relapse logged for ${cell.localDayKey}.',
+          removeSuccessMessage: 'Relapse removed for ${cell.localDayKey}.',
+        );
+      }
+    } on Object catch (error, stackTrace) {
+      _logger.error(
+        'Failed to toggle grid cell ${cell.localDayKey} for habit ${habit.id}.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('Could not update that day.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          final Set<String> updatedBusyIds = <String>{..._trackingHabitIds};
+          updatedBusyIds.remove(habit.id);
+          _trackingHabitIds = updatedBusyIds;
+        });
+      }
+    }
+  }
+
+  _GridEditGuardResult _evaluateGridEditGuard({
+    required final Habit habit,
+    required final String localDayKey,
+    required final DateTime nowLocal,
+  }) {
+    final DateTime todayDate = _dateOnly(nowLocal);
+    final DateTime targetDate = _parseLocalDayKey(localDayKey);
+    if (targetDate.isAfter(todayDate)) {
+      return const _GridEditGuardResult.blocked(
+        'Future days cannot be edited.',
+      );
+    }
+
+    if (habit.mode == HabitMode.positive) {
+      final DateTime createdLocalDate = _dateOnly(habit.createdAtUtc.toLocal());
+      if (targetDate.isBefore(createdLocalDate)) {
+        return const _GridEditGuardResult.blocked(
+          'Cannot edit days before the habit was created.',
+        );
+      }
+      return const _GridEditGuardResult.allowed();
+    }
+
+    final DateTime earliestAllowedDate = todayDate.subtract(
+      const Duration(days: 7),
+    );
+    if (targetDate.isBefore(earliestAllowedDate)) {
+      return const _GridEditGuardResult.blocked(
+        'Negative habits can only edit today and the last 7 days.',
+      );
+    }
+    return const _GridEditGuardResult.allowed();
+  }
+
+  DateTime _resolveGridEventLocalDateTime({
+    required final String localDayKey,
+    required final DateTime nowLocal,
+  }) {
+    final DateTime targetDate = _parseLocalDayKey(localDayKey);
+    return DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+      nowLocal.hour,
+      nowLocal.minute,
+      nowLocal.second,
+      nowLocal.millisecond,
+      nowLocal.microsecond,
+    );
+  }
+
+  DateTime _parseLocalDayKey(final String localDayKey) {
+    final List<String> parts = localDayKey.split('-');
+    if (parts.length != 3) {
+      throw ArgumentError.value(
+        localDayKey,
+        'localDayKey',
+        'localDayKey must use YYYY-MM-DD format.',
+      );
+    }
+
+    final int? year = int.tryParse(parts[0]);
+    final int? month = int.tryParse(parts[1]);
+    final int? day = int.tryParse(parts[2]);
+    if (year == null || month == null || day == null) {
+      throw ArgumentError.value(
+        localDayKey,
+        'localDayKey',
+        'localDayKey must use YYYY-MM-DD format.',
+      );
+    }
+    final DateTime parsed = DateTime(year, month, day);
+    if (parsed.year != year || parsed.month != month || parsed.day != day) {
+      throw ArgumentError.value(
+        localDayKey,
+        'localDayKey',
+        'localDayKey must represent a valid calendar date.',
+      );
+    }
+    return parsed;
+  }
+
+  DateTime _dateOnly(final DateTime dateTime) {
+    final DateTime normalized = dateTime.isUtc ? dateTime.toLocal() : dateTime;
+    return DateTime(normalized.year, normalized.month, normalized.day);
   }
 
   Future<void> _promptBackdatedRelapse(final Habit habit) async {
@@ -743,6 +994,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     _streakLabelsByHabitId[habit.id] ??
                     _fallbackStreakSummary(habit),
                 isCompletedToday: _completedTodayHabitIds.contains(habit.id),
+                hasRelapseHistory:
+                    _latestRelapseEventForHabit(habit.id) != null,
                 isTrackingActionInProgress: _trackingHabitIds.contains(
                   habit.id,
                 ),
@@ -755,6 +1008,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 weekdayLabels: weekdayLabels,
                 onQuickAction: () => _onQuickActionTap(habit),
+                onGridCellTap: (final HabitMonthCell cell) =>
+                    _onGridCellTap(habit: habit, cell: cell),
                 onEdit: () => _editHabit(habit),
                 onBackdateRelapse: () => _promptBackdatedRelapse(habit),
                 onArchive: () => _archiveHabit(habit),
@@ -795,6 +1050,17 @@ class _HabitTrackingSnapshot {
   final bool isCompletedToday;
   final String streakLabel;
   final List<HabitEvent> events;
+}
+
+class _GridEditGuardResult {
+  const _GridEditGuardResult.allowed()
+    : isAllowed = true,
+      feedbackMessage = null;
+
+  const _GridEditGuardResult.blocked(this.feedbackMessage) : isAllowed = false;
+
+  final bool isAllowed;
+  final String? feedbackMessage;
 }
 
 class _MonthNavigationBar extends StatelessWidget {
@@ -1040,10 +1306,12 @@ class _HabitCard extends StatelessWidget {
     required this.habit,
     required this.streakSummary,
     required this.isCompletedToday,
+    required this.hasRelapseHistory,
     required this.isTrackingActionInProgress,
     required this.monthlyCells,
     required this.weekdayLabels,
     required this.onQuickAction,
+    required this.onGridCellTap,
     required this.onEdit,
     required this.onBackdateRelapse,
     required this.onArchive,
@@ -1052,10 +1320,12 @@ class _HabitCard extends StatelessWidget {
   final Habit habit;
   final String streakSummary;
   final bool isCompletedToday;
+  final bool hasRelapseHistory;
   final bool isTrackingActionInProgress;
   final List<HabitMonthCell> monthlyCells;
   final List<String> weekdayLabels;
   final Future<void> Function() onQuickAction;
+  final Future<void> Function(HabitMonthCell cell) onGridCellTap;
   final Future<void> Function() onEdit;
   final Future<void> Function() onBackdateRelapse;
   final Future<void> Function() onArchive;
@@ -1075,11 +1345,13 @@ class _HabitCard extends StatelessWidget {
     final IconData quickActionIcon = switch (habit.mode) {
       HabitMode.positive =>
         isCompletedToday ? Icons.undo_rounded : Icons.check_circle_rounded,
-      HabitMode.negative => Icons.warning_amber_rounded,
+      HabitMode.negative =>
+        hasRelapseHistory ? Icons.undo_rounded : Icons.warning_amber_rounded,
     };
     final String quickActionTooltip = switch (habit.mode) {
       HabitMode.positive => isCompletedToday ? 'Undo today' : 'Mark done today',
-      HabitMode.negative => 'Log relapse now',
+      HabitMode.negative =>
+        hasRelapseHistory ? 'Undo latest relapse' : 'Log relapse now',
     };
 
     return Card(
@@ -1209,6 +1481,7 @@ class _HabitCard extends StatelessWidget {
               mode: habit.mode,
               textColor: textColor,
               weekdayLabels: weekdayLabels,
+              onCellTap: isTrackingActionInProgress ? null : onGridCellTap,
             ),
           ),
         ],
@@ -1224,6 +1497,7 @@ class _HabitMonthGrid extends StatelessWidget {
     required this.mode,
     required this.textColor,
     required this.weekdayLabels,
+    required this.onCellTap,
   });
 
   final String habitId;
@@ -1231,6 +1505,7 @@ class _HabitMonthGrid extends StatelessWidget {
   final HabitMode mode;
   final Color textColor;
   final List<String> weekdayLabels;
+  final Future<void> Function(HabitMonthCell cell)? onCellTap;
 
   @override
   Widget build(final BuildContext context) {
@@ -1283,6 +1558,11 @@ class _HabitMonthGrid extends StatelessWidget {
                       habitId: habitId,
                       cell: cell,
                       cellSize: cellSize,
+                      onTap: onCellTap == null
+                          ? null
+                          : () {
+                              onCellTap!(cell);
+                            },
                     );
                   })
                   .toList(growable: false),
@@ -1299,11 +1579,13 @@ class _HabitMonthCell extends StatelessWidget {
     required this.habitId,
     required this.cell,
     required this.cellSize,
+    required this.onTap,
   });
 
   final String habitId;
   final HabitMonthCell cell;
   final double cellSize;
+  final VoidCallback? onTap;
 
   @override
   Widget build(final BuildContext context) {
@@ -1311,46 +1593,53 @@ class _HabitMonthCell extends StatelessWidget {
     final bool showDayNumber = cell.isInMonth && cellSize >= 19;
     return Tooltip(
       message: '${cell.localDayKey}: ${visual.tooltipLabel}',
-      child: Container(
+      child: GestureDetector(
         key: ValueKey<String>(
-          'habit_grid_cell_${habitId}_${cell.localDayKey}_${cell.state.name}',
+          'habit_grid_cell_tap_${habitId}_${cell.localDayKey}',
         ),
-        width: cellSize,
-        height: cellSize,
-        decoration: BoxDecoration(
-          color: visual.backgroundColor.withValues(
-            alpha: cell.isInMonth ? visual.alpha : visual.alpha * 0.45,
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          key: ValueKey<String>(
+            'habit_grid_cell_${habitId}_${cell.localDayKey}_${cell.state.name}',
           ),
-          borderRadius: BorderRadius.circular(AppRadii.sm),
-          border: Border.all(
-            color: visual.borderColor.withValues(
-              alpha: cell.isInMonth ? 1 : 0.45,
+          width: cellSize,
+          height: cellSize,
+          decoration: BoxDecoration(
+            color: visual.backgroundColor.withValues(
+              alpha: cell.isInMonth ? visual.alpha : visual.alpha * 0.45,
             ),
-            width: visual.borderWidth,
+            borderRadius: BorderRadius.circular(AppRadii.sm),
+            border: Border.all(
+              color: visual.borderColor.withValues(
+                alpha: cell.isInMonth ? 1 : 0.45,
+              ),
+              width: visual.borderWidth,
+            ),
           ),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: <Widget>[
-            if (showDayNumber)
-              Text(
-                '${cell.dateLocal.day}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontSize: cellSize < 22 ? 9 : 10,
-                  color: visual.textColor,
-                  fontWeight: FontWeight.w600,
+          child: Stack(
+            alignment: Alignment.center,
+            children: <Widget>[
+              if (showDayNumber)
+                Text(
+                  '${cell.dateLocal.day}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontSize: cellSize < 22 ? 9 : 10,
+                    color: visual.textColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            if (visual.showRelapseDot)
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: visual.dotColor,
-                  shape: BoxShape.circle,
+              if (visual.showRelapseDot)
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: visual.dotColor,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -281,7 +281,85 @@ void main() {
       expect(find.textContaining('ago'), findsOneWidget);
     });
 
-    testWidgets('negative quick action logs relapse now and allows backdate', (
+    testWidgets(
+      'negative quick action logs relapse, undoes latest relapse, and allows backdate',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'No Soda',
+              iconKey: 'water',
+              colorHex: '#8A2D3B',
+              mode: HabitMode.negative,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+        final _FakeHabitEventRepository eventRepository =
+            _FakeHabitEventRepository();
+        final DateTime nowLocal = DateTime(2026, 2, 15, 14, 45);
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: eventRepository,
+          clock: () => nowLocal,
+        );
+
+        expect(find.textContaining('Started '), findsOneWidget);
+        expect(find.textContaining('ago'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('since relapse'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Started '), findsOneWidget);
+        expect(find.textContaining('ago'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('habit_card_menu_habit-1')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Backdate Relapse'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const Key('backdate_relapse_date_dropdown')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('2026-02-12').last);
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const Key('backdate_relapse_confirm_button')),
+        );
+        await tester.pumpAndSettle();
+
+        final List<HabitEvent> events = await eventRepository
+            .listEventsForHabit('habit-1');
+        expect(events.length, 1);
+        expect(
+          events.any((final HabitEvent e) => e.localDayKey == '2026-02-12'),
+          isTrue,
+        );
+        expect(
+          events.every(
+            (final HabitEvent event) =>
+                event.eventType == HabitEventType.relapse,
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets('negative quick action undo removes latest relapse first', (
       final WidgetTester tester,
     ) async {
       final _FakeHabitRepository repository = _FakeHabitRepository(
@@ -297,67 +375,55 @@ void main() {
         ],
       );
       final _FakeHabitEventRepository eventRepository =
-          _FakeHabitEventRepository();
-      final DateTime nowLocal = DateTime(2026, 2, 15, 14, 45);
+          _FakeHabitEventRepository(
+            seedEvents: <HabitEvent>[
+              HabitEvent(
+                id: 'event-1',
+                habitId: 'habit-1',
+                eventType: HabitEventType.relapse,
+                occurredAtUtc: DateTime.utc(2026, 2, 12, 9),
+                localDayKey: '2026-02-12',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+              HabitEvent(
+                id: 'event-2',
+                habitId: 'habit-1',
+                eventType: HabitEventType.relapse,
+                occurredAtUtc: DateTime.utc(2026, 2, 15, 9),
+                localDayKey: '2026-02-15',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+            ],
+          );
 
       await _pumpHomeScreen(
         tester: tester,
         repository: repository,
         eventRepository: eventRepository,
-        clock: () => nowLocal,
+        clock: () => DateTime(2026, 2, 15, 10),
       );
-
-      expect(find.textContaining('Started '), findsOneWidget);
-      expect(find.textContaining('ago'), findsOneWidget);
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
-      );
-      await tester.pumpAndSettle();
-      expect(find.textContaining('since relapse'), findsOneWidget);
 
       await tester.tap(
         find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const ValueKey<String>('habit_card_menu_habit-1')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Backdate Relapse'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const Key('backdate_relapse_date_dropdown')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('2026-02-12').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(const Key('backdate_relapse_confirm_button')),
-      );
-      await tester.pumpAndSettle();
-
-      final List<HabitEvent> events = await eventRepository.listEventsForHabit(
+      List<HabitEvent> events = await eventRepository.listEventsForHabit(
         'habit-1',
       );
-      expect(events.length, 3);
-      expect(
-        events
-            .where((final HabitEvent e) => e.localDayKey == '2026-02-15')
-            .length,
-        2,
+      expect(events.length, 1);
+      expect(events.single.id, 'event-1');
+      expect(events.single.localDayKey, '2026-02-12');
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
       );
-      expect(
-        events.any((final HabitEvent e) => e.localDayKey == '2026-02-12'),
-        isTrue,
-      );
-      expect(
-        events.every(
-          (final HabitEvent event) => event.eventType == HabitEventType.relapse,
-        ),
-        isTrue,
-      );
+      await tester.pumpAndSettle();
+
+      events = await eventRepository.listEventsForHabit('habit-1');
+      expect(events, isEmpty);
+      expect(find.textContaining('Started '), findsOneWidget);
+      expect(find.textContaining('ago'), findsOneWidget);
     });
   });
 
@@ -495,6 +561,189 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      'positive grid tap toggles completion and preserves persisted day invariants',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'Read',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+        final _FakeHabitEventRepository eventRepository =
+            _FakeHabitEventRepository();
+        final DateTime nowLocal = DateTime(2026, 2, 15, 9, 30);
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: eventRepository,
+          clock: () => nowLocal,
+        );
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('habit_grid_cell_tap_habit-1_2026-02-14'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-1_2026-02-14_positiveDone',
+            ),
+          ),
+          findsOneWidget,
+        );
+        List<HabitEvent> events = await eventRepository.listEventsForHabit(
+          'habit-1',
+        );
+        expect(events.length, 1);
+        expect(events.single.eventType, HabitEventType.complete);
+        expect(events.single.localDayKey, '2026-02-14');
+        expect(
+          events.single.occurredAtUtc,
+          DateTime(2026, 2, 14, 9, 30).toUtc(),
+        );
+        expect(
+          events.single.tzOffsetMinutesAtEvent,
+          nowLocal.timeZoneOffset.inMinutes,
+        );
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('habit_grid_cell_tap_habit-1_2026-02-14'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-1_2026-02-14_positiveMissed',
+            ),
+          ),
+          findsOneWidget,
+        );
+        events = await eventRepository.listEventsForHabit('habit-1');
+        expect(events, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'grid edit guardrails block future/too-old days and enforce allowed windows',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-positive',
+              name: 'Read',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 10, 8),
+            ),
+            Habit(
+              id: 'habit-negative',
+              name: 'No Soda',
+              iconKey: 'water',
+              colorHex: '#8A2D3B',
+              mode: HabitMode.negative,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+        final _FakeHabitEventRepository eventRepository =
+            _FakeHabitEventRepository();
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: eventRepository,
+          clock: () => DateTime(2026, 2, 15, 9, 30),
+        );
+
+        Finder tapTarget = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_tap_habit-positive_2026-02-05',
+          ),
+        );
+        await tester.ensureVisible(tapTarget);
+        await tester.tap(tapTarget);
+        await tester.pump();
+        expect(
+          await eventRepository.listEventsForHabit('habit-positive'),
+          isEmpty,
+        );
+
+        tapTarget = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_tap_habit-positive_2026-02-20',
+          ),
+        );
+        await tester.ensureVisible(tapTarget);
+        await tester.tap(tapTarget);
+        await tester.pump();
+        expect(
+          await eventRepository.listEventsForHabit('habit-positive'),
+          isEmpty,
+        );
+
+        tapTarget = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_tap_habit-negative_2026-02-07',
+          ),
+        );
+        await tester.ensureVisible(tapTarget);
+        await tester.tap(tapTarget);
+        await tester.pump();
+        expect(
+          await eventRepository.listEventsForHabit('habit-negative'),
+          isEmpty,
+        );
+
+        tapTarget = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_tap_habit-negative_2026-02-15',
+          ),
+        );
+        await tester.ensureVisible(tapTarget);
+        await tester.tap(tapTarget);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-negative_2026-02-15_negativeRelapse',
+            ),
+          ),
+          findsOneWidget,
+        );
+        tapTarget = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_tap_habit-negative_2026-02-15',
+          ),
+        );
+        await tester.ensureVisible(tapTarget);
+        await tester.tap(tapTarget);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-negative_2026-02-15_negativeClear',
+            ),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets('month navigation updates label and current-month controls', (
       final WidgetTester tester,
@@ -1905,6 +2154,93 @@ void main() {
       expect(events.single.localDayKey, '2026-02-15');
       expect(events.single.eventType, HabitEventType.complete);
     });
+
+    testWidgets(
+      'negative quick action and grid taps remain behaviorally consistent',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'No Soda',
+              iconKey: 'water',
+              colorHex: '#8A2D3B',
+              mode: HabitMode.negative,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+        final _FakeHabitEventRepository eventRepository =
+            _FakeHabitEventRepository();
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: eventRepository,
+          clock: () => DateTime(2026, 2, 15, 9, 30),
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-1_2026-02-15_negativeRelapse',
+            ),
+          ),
+          findsOneWidget,
+        );
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('habit_grid_cell_tap_habit-1_2026-02-15'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-1_2026-02-15_negativeClear',
+            ),
+          ),
+          findsOneWidget,
+        );
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('habit_grid_cell_tap_habit-1_2026-02-15'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-1_2026-02-15_negativeRelapse',
+            ),
+          ),
+          findsOneWidget,
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(
+            const ValueKey<String>(
+              'habit_grid_cell_habit-1_2026-02-15_negativeClear',
+            ),
+          ),
+          findsOneWidget,
+        );
+
+        final List<HabitEvent> events = await eventRepository
+            .listEventsForHabit('habit-1');
+        expect(events, isEmpty);
+      },
+    );
 
     testWidgets('long names stay overflow-safe at large text scaling', (
       final WidgetTester tester,
