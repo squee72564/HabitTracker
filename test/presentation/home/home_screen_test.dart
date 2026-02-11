@@ -419,6 +419,81 @@ void main() {
   });
 
   group('HomeScreen Stage 6 dashboard + grid flows', () {
+    testWidgets(
+      'cards use neutral surfaces while preserving per-habit accent strips',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'Read',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+            Habit(
+              id: 'habit-2',
+              name: 'Walk',
+              iconKey: 'walk',
+              colorHex: '#8A2D3B',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+          clock: () => DateTime(2026, 2, 15, 9),
+        );
+
+        final ThemeData theme = Theme.of(
+          tester.element(find.byType(HomeScreen)),
+        );
+
+        final Finder cardOneFinder = find.byKey(
+          const ValueKey<String>('habit_card_habit-1'),
+        );
+        final Finder cardTwoFinder = find.byKey(
+          const ValueKey<String>('habit_card_habit-2'),
+        );
+        final Card cardOne = tester.widget<Card>(
+          find.descendant(of: cardOneFinder, matching: find.byType(Card)),
+        );
+        final Card cardTwo = tester.widget<Card>(
+          find.descendant(of: cardTwoFinder, matching: find.byType(Card)),
+        );
+        expect(cardOne.color, theme.colorScheme.surfaceContainerHighest);
+        expect(cardTwo.color, theme.colorScheme.surfaceContainerHighest);
+
+        final Container accentStripOne = tester.widget<Container>(
+          find.byKey(const ValueKey<String>('habit_card_accent_strip_habit-1')),
+        );
+        final Container accentStripTwo = tester.widget<Container>(
+          find.byKey(const ValueKey<String>('habit_card_accent_strip_habit-2')),
+        );
+        expect(accentStripOne.color, isNotNull);
+        expect(accentStripTwo.color, isNotNull);
+        expect(accentStripOne.color, isNot(equals(accentStripTwo.color)));
+        expect(
+          accentStripOne.color,
+          isNot(equals(theme.colorScheme.surfaceContainerHighest)),
+        );
+
+        final CircleAvatar avatarOne = tester.widget<CircleAvatar>(
+          find.byKey(const ValueKey<String>('habit_card_avatar_habit-1')),
+        );
+        expect(avatarOne.backgroundColor, isNotNull);
+        expect(
+          avatarOne.backgroundColor,
+          isNot(equals(theme.colorScheme.surfaceContainerHighest)),
+        );
+      },
+    );
+
     testWidgets('positive grid maps done, missed, and future cells', (
       final WidgetTester tester,
     ) async {
@@ -488,6 +563,58 @@ void main() {
         ),
         findsOneWidget,
       );
+
+      final ThemeData theme = Theme.of(tester.element(find.byType(HomeScreen)));
+      final Finder doneCellFinder = find.byKey(
+        const ValueKey<String>(
+          'habit_grid_cell_habit-1_2026-02-10_positiveDone',
+        ),
+      );
+      final Finder missedCellFinder = find.byKey(
+        const ValueKey<String>(
+          'habit_grid_cell_habit-1_2026-02-14_positiveMissed',
+        ),
+      );
+      final Finder futureCellFinder = find.byKey(
+        const ValueKey<String>(
+          'habit_grid_cell_habit-1_2026-02-20_positiveFuture',
+        ),
+      );
+      final BoxDecoration doneDecoration = _gridCellDecoration(
+        tester: tester,
+        cellFinder: doneCellFinder,
+      );
+      final BoxDecoration missedDecoration = _gridCellDecoration(
+        tester: tester,
+        cellFinder: missedCellFinder,
+      );
+      final BoxDecoration futureDecoration = _gridCellDecoration(
+        tester: tester,
+        cellFinder: futureCellFinder,
+      );
+      expect(doneDecoration.color, isNot(equals(missedDecoration.color)));
+      expect(doneDecoration.color, isNot(equals(futureDecoration.color)));
+      expect(missedDecoration.color, isNot(equals(futureDecoration.color)));
+      expect(futureDecoration.color?.a, lessThan(doneDecoration.color?.a ?? 1));
+
+      final Border doneBorder = doneDecoration.border! as Border;
+      final Border missedBorder = missedDecoration.border! as Border;
+      final Border futureBorder = futureDecoration.border! as Border;
+      expect(doneBorder.top.color, isNot(equals(missedBorder.top.color)));
+      expect(doneBorder.top.color, isNot(equals(futureBorder.top.color)));
+
+      final Text doneDayLabel = tester.widget<Text>(
+        find.descendant(of: doneCellFinder, matching: find.text('10')),
+      );
+      _expectMinContrast(
+        foreground: doneDayLabel.style?.color,
+        background: _effectiveCellBackground(
+          cellColor: doneDecoration.color!,
+          surfaceColor: theme.colorScheme.surfaceContainerHighest,
+        ),
+        contextLabel: 'positive done day label',
+        minContrastRatio: 4.5,
+      );
     });
 
     testWidgets('negative grid marks relapse days and future days', (
@@ -549,6 +676,71 @@ void main() {
           ),
         ),
         findsOneWidget,
+      );
+
+      final ThemeData theme = Theme.of(tester.element(find.byType(HomeScreen)));
+      final Finder relapseCellFinder = find.byKey(
+        const ValueKey<String>(
+          'habit_grid_cell_habit-1_2026-02-12_negativeRelapse',
+        ),
+      );
+      final Finder clearCellFinder = find.byKey(
+        const ValueKey<String>(
+          'habit_grid_cell_habit-1_2026-02-11_negativeClear',
+        ),
+      );
+      final Finder futureCellFinder = find.byKey(
+        const ValueKey<String>(
+          'habit_grid_cell_habit-1_2026-02-20_negativeFuture',
+        ),
+      );
+      final BoxDecoration relapseDecoration = _gridCellDecoration(
+        tester: tester,
+        cellFinder: relapseCellFinder,
+      );
+      final BoxDecoration clearDecoration = _gridCellDecoration(
+        tester: tester,
+        cellFinder: clearCellFinder,
+      );
+      final BoxDecoration futureDecoration = _gridCellDecoration(
+        tester: tester,
+        cellFinder: futureCellFinder,
+      );
+      expect(relapseDecoration.color, isNot(equals(clearDecoration.color)));
+      expect(relapseDecoration.color, isNot(equals(futureDecoration.color)));
+      expect(
+        futureDecoration.color?.a,
+        lessThan(relapseDecoration.color?.a ?? 1),
+      );
+
+      final Border relapseBorder = relapseDecoration.border! as Border;
+      final Border clearBorder = clearDecoration.border! as Border;
+      expect(relapseBorder.top.color, isNot(equals(clearBorder.top.color)));
+
+      final Finder relapseDotFinder = find.descendant(
+        of: relapseCellFinder,
+        matching: find.byWidgetPredicate((final Widget widget) {
+          if (widget is! Container) {
+            return false;
+          }
+          final Decoration? decoration = widget.decoration;
+          return decoration is BoxDecoration &&
+              decoration.shape == BoxShape.circle;
+        }),
+      );
+      expect(relapseDotFinder, findsOneWidget);
+
+      final Text relapseDayLabel = tester.widget<Text>(
+        find.descendant(of: relapseCellFinder, matching: find.text('12')),
+      );
+      _expectMinContrast(
+        foreground: relapseDayLabel.style?.color,
+        background: _effectiveCellBackground(
+          cellColor: relapseDecoration.color!,
+          surfaceColor: theme.colorScheme.surfaceContainerHighest,
+        ),
+        contextLabel: 'negative relapse day label',
+        minContrastRatio: 4.5,
       );
     });
 
@@ -2374,6 +2566,25 @@ void main() {
       }
     });
   });
+}
+
+BoxDecoration _gridCellDecoration({
+  required final WidgetTester tester,
+  required final Finder cellFinder,
+}) {
+  final Container container = tester.widget<Container>(cellFinder);
+  final Decoration? decoration = container.decoration;
+  expect(decoration, isA<BoxDecoration>());
+  return decoration! as BoxDecoration;
+}
+
+Color _effectiveCellBackground({
+  required final Color cellColor,
+  required final Color surfaceColor,
+}) {
+  return cellColor.a == 1
+      ? cellColor
+      : Color.alphaBlend(cellColor, surfaceColor);
 }
 
 void _expectHabitCardContrast({

@@ -1231,8 +1231,19 @@ class _HabitCard extends StatelessWidget {
 
   @override
   Widget build(final BuildContext context) {
-    final Color cardColor = _colorFromHex(habit.colorHex);
-    final Color textColor = _foregroundFor(cardColor);
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final Color accentColor = _colorFromHex(habit.colorHex);
+    final Color cardColor = colorScheme.surfaceContainerHighest;
+    final Color textColor = colorScheme.onSurface;
+    final Color supportingTextColor = colorScheme.onSurfaceVariant;
+    final Color avatarBackgroundColor = Color.alphaBlend(
+      accentColor.withValues(alpha: 0.26),
+      cardColor,
+    );
+    final Color statusColor = switch (habit.mode) {
+      HabitMode.positive => isCompletedToday ? textColor : supportingTextColor,
+      HabitMode.negative => hasRelapseHistory ? textColor : supportingTextColor,
+    };
 
     final String modeLabel = habit.mode == HabitMode.positive
         ? 'Positive habit'
@@ -1255,8 +1266,20 @@ class _HabitCard extends StatelessWidget {
     return Card(
       color: cardColor,
       margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.85),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: <Widget>[
+          Container(
+            key: ValueKey<String>('habit_card_accent_strip_${habit.id}'),
+            height: 4,
+            color: accentColor.withValues(alpha: 0.9),
+          ),
           ListTile(
             contentPadding: const EdgeInsets.fromLTRB(
               AppSpacing.md,
@@ -1265,7 +1288,8 @@ class _HabitCard extends StatelessWidget {
               AppSpacing.xs,
             ),
             leading: CircleAvatar(
-              backgroundColor: textColor.withValues(alpha: 0.2),
+              key: ValueKey<String>('habit_card_avatar_${habit.id}'),
+              backgroundColor: avatarBackgroundColor,
               child: Icon(_iconForKey(habit.iconKey), color: textColor),
             ),
             title: Text(
@@ -1284,7 +1308,7 @@ class _HabitCard extends StatelessWidget {
                   modeLabel,
                   style: Theme.of(
                     context,
-                  ).textTheme.bodySmall?.copyWith(color: textColor),
+                  ).textTheme.bodySmall?.copyWith(color: supportingTextColor),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1301,7 +1325,16 @@ class _HabitCard extends StatelessWidget {
                     doneToday,
                     style: Theme.of(
                       context,
-                    ).textTheme.bodyMedium?.copyWith(color: textColor),
+                    ).textTheme.bodyMedium?.copyWith(color: statusColor),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                if (habit.mode == HabitMode.negative)
+                  Text(
+                    hasRelapseHistory ? 'Relapse logged' : 'No relapse logged',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: statusColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1310,7 +1343,7 @@ class _HabitCard extends StatelessWidget {
                     habit.note!,
                     style: Theme.of(
                       context,
-                    ).textTheme.bodySmall?.copyWith(color: textColor),
+                    ).textTheme.bodySmall?.copyWith(color: supportingTextColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1385,8 +1418,7 @@ class _HabitCard extends StatelessWidget {
             child: _HabitMonthGrid(
               habitId: habit.id,
               cells: monthlyCells,
-              mode: habit.mode,
-              textColor: textColor,
+              accentColor: accentColor,
               onCellTap: isTrackingActionInProgress ? null : onGridCellTap,
             ),
           ),
@@ -1400,15 +1432,13 @@ class _HabitMonthGrid extends StatelessWidget {
   const _HabitMonthGrid({
     required this.habitId,
     required this.cells,
-    required this.mode,
-    required this.textColor,
+    required this.accentColor,
     required this.onCellTap,
   });
 
   final String habitId;
   final List<HabitMonthCell> cells;
-  final HabitMode mode;
-  final Color textColor;
+  final Color accentColor;
   final Future<void> Function(HabitMonthCell cell)? onCellTap;
 
   @override
@@ -1432,6 +1462,7 @@ class _HabitMonthGrid extends StatelessWidget {
                     return _HabitMonthCell(
                       habitId: habitId,
                       cell: cell,
+                      accentColor: accentColor,
                       cellSize: cellSize,
                       onTap: onCellTap == null
                           ? null
@@ -1453,18 +1484,24 @@ class _HabitMonthCell extends StatelessWidget {
   const _HabitMonthCell({
     required this.habitId,
     required this.cell,
+    required this.accentColor,
     required this.cellSize,
     required this.onTap,
   });
 
   final String habitId;
   final HabitMonthCell cell;
+  final Color accentColor;
   final double cellSize;
   final VoidCallback? onTap;
 
   @override
   Widget build(final BuildContext context) {
-    final _MonthCellVisual visual = _visualForCell(context, cell);
+    final _MonthCellVisual visual = _visualForCell(
+      context: context,
+      cell: cell,
+      accentColor: accentColor,
+    );
     final bool showDayNumber = cell.isInMonth && cellSize >= 19;
     return Tooltip(
       message: '${cell.localDayKey}: ${visual.tooltipLabel}',
@@ -1521,60 +1558,77 @@ class _HabitMonthCell extends StatelessWidget {
   }
 }
 
-_MonthCellVisual _visualForCell(
-  final BuildContext context,
-  final HabitMonthCell cell,
-) {
+_MonthCellVisual _visualForCell({
+  required final BuildContext context,
+  required final HabitMonthCell cell,
+  required final Color accentColor,
+}) {
   final ColorScheme colorScheme = Theme.of(context).colorScheme;
   final HabitSemanticColors semanticColors = context.semanticColors;
+  final Color doneAccentFill = Color.alphaBlend(
+    accentColor.withValues(alpha: 0.88),
+    colorScheme.surfaceContainerHighest,
+  );
+  final Color relapseAccentFill = Color.alphaBlend(
+    semanticColors.negative.withValues(alpha: 0.28),
+    colorScheme.surfaceContainerHighest,
+  );
+  final Color positiveClearFill = Color.alphaBlend(
+    semanticColors.positive.withValues(alpha: 0.24),
+    colorScheme.surfaceContainerHighest,
+  );
+  final Color futureFill = colorScheme.surfaceContainerHighest;
   return switch (cell.state) {
     HabitMonthCellState.positiveDone => _MonthCellVisual(
-      backgroundColor: semanticColors.positive,
-      borderColor: semanticColors.positive.withValues(alpha: 0.9),
-      textColor: Colors.white,
-      alpha: 0.9,
-      borderWidth: 1,
+      backgroundColor: doneAccentFill,
+      borderColor: accentColor.withValues(alpha: 0.95),
+      textColor: _foregroundFor(doneAccentFill),
+      alpha: 1,
+      borderWidth: 1.2,
       tooltipLabel: 'Done',
     ),
     HabitMonthCellState.positiveMissed => _MonthCellVisual(
-      backgroundColor: semanticColors.negative.withValues(alpha: 0.2),
-      borderColor: semanticColors.negative.withValues(alpha: 0.65),
+      backgroundColor: Color.alphaBlend(
+        semanticColors.negative.withValues(alpha: 0.24),
+        colorScheme.surfaceContainerHighest,
+      ),
+      borderColor: semanticColors.negative.withValues(alpha: 0.9),
       textColor: colorScheme.onSurface,
-      alpha: 0.9,
+      alpha: 0.95,
       borderWidth: 1,
       tooltipLabel: 'Missed',
     ),
     HabitMonthCellState.positiveFuture => _MonthCellVisual(
-      backgroundColor: colorScheme.surfaceContainerHighest,
+      backgroundColor: futureFill,
       borderColor: colorScheme.outlineVariant,
       textColor: colorScheme.onSurfaceVariant,
-      alpha: 0.35,
+      alpha: 0.26,
       borderWidth: 1,
       tooltipLabel: 'Future',
     ),
     HabitMonthCellState.negativeRelapse => _MonthCellVisual(
-      backgroundColor: colorScheme.surface,
-      borderColor: semanticColors.negative,
+      backgroundColor: relapseAccentFill,
+      borderColor: accentColor.withValues(alpha: 0.95),
       textColor: colorScheme.onSurface,
-      alpha: 0.85,
+      alpha: 1,
       borderWidth: 1.2,
       tooltipLabel: 'Relapse',
       showRelapseDot: true,
-      dotColor: semanticColors.negative,
+      dotColor: accentColor,
     ),
     HabitMonthCellState.negativeClear => _MonthCellVisual(
-      backgroundColor: semanticColors.positive.withValues(alpha: 0.2),
-      borderColor: semanticColors.positive.withValues(alpha: 0.45),
+      backgroundColor: positiveClearFill,
+      borderColor: semanticColors.positive.withValues(alpha: 0.78),
       textColor: colorScheme.onSurface,
-      alpha: 0.8,
+      alpha: 0.95,
       borderWidth: 1,
       tooltipLabel: 'No relapse',
     ),
     HabitMonthCellState.negativeFuture => _MonthCellVisual(
-      backgroundColor: colorScheme.surfaceContainerHighest,
+      backgroundColor: futureFill,
       borderColor: colorScheme.outlineVariant,
       textColor: colorScheme.onSurfaceVariant,
-      alpha: 0.35,
+      alpha: 0.26,
       borderWidth: 1,
       tooltipLabel: 'Future',
     ),
