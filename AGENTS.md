@@ -42,7 +42,7 @@ Use Flutter-native commands:
 - Default validation sequence for implementation changes:
   - `flutter pub get` (must pass)
   - `flutter analyze` (must report no issues)
-  - `dart lint .` (lint all files if analyze passes, or use a specific directory/path for specific files)
+  - `dart format .` (lint all files if analyze passes, or use a specific directory/path for specific files)
   - `flutter test` (must pass all tests)
 - For focused verification during development, run a specific file as needed:
   - `flutter test test/widget_test.dart`
