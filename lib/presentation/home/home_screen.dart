@@ -900,9 +900,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showSnackBar(final String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showTransientFeedback(context, message);
   }
 
   @override

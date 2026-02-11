@@ -1,4 +1,5 @@
 export 'error/app_error_boundary.dart';
+export 'feedback/transient_feedback.dart';
 export 'logging/app_logger.dart';
 export 'theme/app_colors.dart';
 export 'theme/app_radii.dart';

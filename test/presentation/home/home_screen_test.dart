@@ -957,6 +957,59 @@ void main() {
       },
     );
 
+    testWidgets('rapid guard messages always show the latest event first', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-positive',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 10, 8),
+          ),
+          Habit(
+            id: 'habit-negative',
+            name: 'No Soda',
+            iconKey: 'water',
+            colorHex: '#8A2D3B',
+            mode: HabitMode.negative,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        clock: () => DateTime(2026, 2, 14, 9, 0),
+      );
+
+      final Finder positiveFutureCell = find.byKey(
+        const ValueKey<String>('habit_grid_cell_tap_habit-positive_2026-02-20'),
+      );
+      await tester.ensureVisible(positiveFutureCell);
+      await tester.tap(positiveFutureCell);
+      await tester.pump();
+      expect(find.text('Future days cannot be edited.'), findsOneWidget);
+
+      final Finder negativeOldCell = find.byKey(
+        const ValueKey<String>('habit_grid_cell_tap_habit-negative_2026-02-05'),
+      );
+      await tester.ensureVisible(negativeOldCell);
+      await tester.tap(negativeOldCell);
+      await tester.pump();
+
+      expect(
+        find.text('Negative habits can only edit today and the last 7 days.'),
+        findsOneWidget,
+      );
+      expect(find.text('Future days cannot be edited.'), findsNothing);
+    });
+
     testWidgets('month navigation updates label and current-month controls', (
       final WidgetTester tester,
     ) async {
@@ -1164,6 +1217,56 @@ void main() {
         13 * 60 + 5,
       );
       expect(find.text('Daily at 1:05 PM'), findsOneWidget);
+    });
+
+    testWidgets('global reminder snackbars prioritize the latest toggle', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitReminderRepository reminderRepository =
+          _FakeHabitReminderRepository(
+            seedReminders: <HabitReminder>[
+              HabitReminder(
+                habitId: 'habit-1',
+                isEnabled: true,
+                reminderTimeMinutes: 13 * 60 + 5,
+              ),
+            ],
+          );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        appSettingsRepository: _FakeAppSettingsRepository(),
+        habitReminderRepository: reminderRepository,
+        notificationScheduler: _FakeReminderNotificationScheduler(),
+      );
+
+      await tester.tap(find.byKey(const Key('home_open_settings_button')));
+      await tester.pumpAndSettle();
+
+      final Finder toggleFinder = find.byKey(
+        const Key('settings_global_reminders_switch'),
+      );
+      await tester.tap(toggleFinder);
+      await tester.pump();
+      await tester.tap(toggleFinder);
+      await tester.pump();
+
+      expect(find.text('Global reminders enabled.'), findsOneWidget);
+      expect(find.text('Global reminders disabled.'), findsNothing);
     });
 
     testWidgets('enabling reminder requests permission and schedules', (
@@ -1717,6 +1820,91 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Journal'), findsOneWidget);
+    });
+
+    testWidgets('archived feedback prioritizes the latest action message', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-archived-1',
+            name: 'Journal',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            archivedAtUtc: DateTime.utc(2026, 2, 2, 8),
+          ),
+          Habit(
+            id: 'habit-archived-2',
+            name: 'Meditate',
+            iconKey: 'self_improvement',
+            colorHex: '#4B7BEC',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 9),
+            archivedAtUtc: DateTime.utc(2026, 2, 3, 8),
+          ),
+        ],
+      );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        appSettingsRepository: _FakeAppSettingsRepository(),
+        habitReminderRepository: _FakeHabitReminderRepository(),
+        notificationScheduler: _FakeReminderNotificationScheduler(),
+      );
+
+      await tester.tap(find.byKey(const Key('home_open_settings_button')));
+      await tester.pumpAndSettle();
+      final Finder openArchivedButton = find.byKey(
+        const Key('settings_open_archived_button'),
+      );
+      await tester.dragUntilVisible(
+        openArchivedButton,
+        find.byType(ListView).first,
+        const Offset(0, -200),
+      );
+      final Offset openArchivedTapTarget =
+          tester.getTopLeft(openArchivedButton) + const Offset(16, 16);
+      await tester.tapAt(openArchivedTapTarget);
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('archived_unarchive_button_habit-archived-1'),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('archived_delete_button_habit-archived-2'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>(
+            'archived_delete_confirmation_field_habit-archived-2',
+          ),
+        ),
+        'Meditate',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>(
+            'archived_delete_confirm_button_habit-archived-2',
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Habit permanently deleted.'), findsOneWidget);
+      expect(find.text('Habit unarchived.'), findsNothing);
     });
 
     testWidgets(

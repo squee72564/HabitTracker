@@ -387,8 +387,6 @@ class _ArchivedHabitsScreenState extends State<ArchivedHabitsScreen> {
   }
 
   void _showSnackBar(final String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showTransientFeedback(context, message);
   }
 }
