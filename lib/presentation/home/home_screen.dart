@@ -2215,10 +2215,7 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
   }
 
   Future<void> _promptForCustomColor() async {
-    String colorDraft =
-        _canonicalHexColorOrNull(_selectedColorHex) ??
-        _selectedColorHex.trim().toUpperCase();
-    String? validationMessage;
+    HSVColor colorDraft = HSVColor.fromColor(_colorFromHex(_selectedColorHex));
     final String? selectedColorHex = await showDialog<String>(
       context: context,
       builder: (final BuildContext context) {
@@ -2228,34 +2225,98 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
                 final BuildContext context,
                 final void Function(void Function()) setDialogState,
               ) {
+                final Color previewColor = colorDraft.toColor();
+                final Color previewTextColor = _foregroundFor(previewColor);
+                final String previewHex = _hexFromColor(previewColor);
                 return AlertDialog(
                   title: const Text('Custom color'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const Text('Enter a hex color using #RRGGBB.'),
-                      const SizedBox(height: AppSpacing.sm),
-                      TextFormField(
-                        key: const Key('habit_form_custom_color_input'),
-                        initialValue: colorDraft,
-                        maxLength: 7,
-                        textCapitalization: TextCapitalization.characters,
-                        inputFormatters: <TextInputFormatter>[
-                          FilteringTextInputFormatter.allow(
-                            RegExp('[#0-9a-fA-F]'),
+                  content: SizedBox(
+                    width: 360,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Text('Use sliders to pick a color.'),
+                          const SizedBox(height: AppSpacing.sm),
+                          DecoratedBox(
+                            key: const Key('habit_form_custom_color_preview'),
+                            decoration: BoxDecoration(
+                              color: previewColor,
+                              borderRadius: BorderRadius.circular(AppRadii.sm),
+                            ),
+                            child: SizedBox(
+                              width: double.infinity,
+                              height: 72,
+                              child: Center(
+                                child: Text(
+                                  previewHex,
+                                  key: const Key(
+                                    'habit_form_custom_color_preview_hex',
+                                  ),
+                                  style: TextStyle(
+                                    color: previewTextColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text('Hue ${colorDraft.hue.round()}'),
+                          Slider(
+                            key: const Key(
+                              'habit_form_custom_color_hue_slider',
+                            ),
+                            min: 0,
+                            max: 360,
+                            divisions: 360,
+                            value: colorDraft.hue,
+                            onChanged: (final double value) {
+                              setDialogState(() {
+                                colorDraft = colorDraft.withHue(value);
+                              });
+                            },
+                          ),
+                          Text(
+                            'Saturation ${(colorDraft.saturation * 100).round()}%',
+                          ),
+                          Slider(
+                            key: const Key(
+                              'habit_form_custom_color_saturation_slider',
+                            ),
+                            min: 0,
+                            max: 100,
+                            divisions: 100,
+                            value: colorDraft.saturation * 100,
+                            onChanged: (final double value) {
+                              setDialogState(() {
+                                colorDraft = colorDraft.withSaturation(
+                                  value / 100,
+                                );
+                              });
+                            },
+                          ),
+                          Text(
+                            'Brightness ${(colorDraft.value * 100).round()}%',
+                          ),
+                          Slider(
+                            key: const Key(
+                              'habit_form_custom_color_brightness_slider',
+                            ),
+                            min: 0,
+                            max: 100,
+                            divisions: 100,
+                            value: colorDraft.value * 100,
+                            onChanged: (final double value) {
+                              setDialogState(() {
+                                colorDraft = colorDraft.withValue(value / 100);
+                              });
+                            },
                           ),
                         ],
-                        decoration: InputDecoration(
-                          labelText: 'Hex color',
-                          hintText: '#1A2B3C',
-                          errorText: validationMessage,
-                        ),
-                        onChanged: (final String value) {
-                          colorDraft = value;
-                        },
                       ),
-                    ],
+                    ),
                   ),
                   actions: <Widget>[
                     TextButton(
@@ -2265,16 +2326,7 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
                     FilledButton(
                       key: const Key('habit_form_custom_color_apply_button'),
                       onPressed: () {
-                        final String? normalized = _canonicalHexColorOrNull(
-                          colorDraft,
-                        );
-                        if (normalized == null) {
-                          setDialogState(() {
-                            validationMessage = 'Use #RRGGBB.';
-                          });
-                          return;
-                        }
-                        Navigator.of(context).pop(normalized);
+                        Navigator.of(context).pop(previewHex);
                       },
                       child: const Text('Apply'),
                     ),
@@ -2598,20 +2650,20 @@ const List<_HabitIconOption> _habitIconOptions = <_HabitIconOption>[
 
 const List<String> _habitColorHexOptions = <String>[
   '#1C7C54',
-  '#255F85',
-  '#6A4C93',
-  '#8A2D3B',
-  '#B85C00',
-  '#2E7D32',
-  '#1565C0',
+  '#16A34A',
+  '#84CC16',
+  '#CA8A04',
+  '#EA580C',
+  '#DC2626',
+  '#BE123C',
+  '#DB2777',
+  '#A21CAF',
+  '#7C3AED',
+  '#4338CA',
+  '#2563EB',
+  '#0284C7',
   '#5D4037',
   '#0E7490',
-  '#7C3AED',
-  '#BE123C',
-  '#9A3412',
-  '#14532D',
-  '#1E3A8A',
-  '#374151',
   '#0F766E',
 ];
 
@@ -2643,6 +2695,11 @@ Color _colorFromHex(final String hexColor) {
 
   final int rgb = int.parse(normalized.substring(1), radix: 16);
   return Color(0xFF000000 | rgb);
+}
+
+String _hexFromColor(final Color color) {
+  final int rgb = color.toARGB32() & 0x00FFFFFF;
+  return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
 }
 
 Color _foregroundFor(final Color backgroundColor) {

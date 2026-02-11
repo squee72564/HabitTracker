@@ -494,6 +494,35 @@ void main() {
       },
     );
 
+    testWidgets('invalid stored color falls back to brand accent strip color', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: 'not-a-color',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        clock: () => DateTime(2026, 2, 15, 9),
+      );
+
+      final Container accentStrip = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('habit_card_accent_strip_habit-1')),
+      );
+      expect(accentStrip.color, AppColors.brand.withValues(alpha: 0.9));
+    });
+
     testWidgets('positive grid maps done, missed, and future cells', (
       final WidgetTester tester,
     ) async {
@@ -2037,7 +2066,7 @@ void main() {
       },
     );
 
-    testWidgets('habit form saves custom colors as uppercase #RRGGBB', (
+    testWidgets('habit form persists selected preset color', (
       final WidgetTester tester,
     ) async {
       final _FakeHabitRepository repository = _FakeHabitRepository();
@@ -2051,31 +2080,162 @@ void main() {
       await tester.tap(find.byKey(const Key('home_create_first_habit_button')));
       await tester.pumpAndSettle();
 
-      final Finder customColorButton = find.byKey(
-        const Key('habit_form_custom_color_button'),
+      final Finder presetColorChip = find.byKey(
+        const ValueKey<String>('habit_form_color_2563EB'),
       );
-      await tester.ensureVisible(customColorButton);
-      await tester.tap(customColorButton);
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const Key('habit_form_custom_color_input')),
-        '#a1b2c3',
-      );
-      await tester.tap(
-        find.byKey(const Key('habit_form_custom_color_apply_button')),
-      );
-      await tester.pumpAndSettle();
+      await tester.ensureVisible(presetColorChip);
+      await tester.tap(presetColorChip);
+      await tester.pump();
 
       await tester.enterText(
         find.byKey(const Key('habit_form_name_field')),
-        'Custom Color Habit',
+        'Preset Color Habit',
       );
-      await tester.tap(find.byKey(const Key('habit_form_submit_button')));
+      final Finder submitButton = find.byKey(
+        const Key('habit_form_submit_button'),
+      );
+      await tester.ensureVisible(submitButton);
+      await tester.tap(submitButton);
       await tester.pumpAndSettle();
 
       final Habit createdHabit = (await repository.listActiveHabits()).single;
-      expect(createdHabit.colorHex, '#A1B2C3');
+      expect(createdHabit.colorHex, '#2563EB');
     });
+
+    testWidgets(
+      'habit form custom color picker is interactive and saves uppercase #RRGGBB',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository();
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+        );
+
+        await tester.tap(
+          find.byKey(const Key('home_create_first_habit_button')),
+        );
+        await tester.pumpAndSettle();
+
+        final Finder customColorButton = find.byKey(
+          const Key('habit_form_custom_color_button'),
+        );
+        await tester.ensureVisible(customColorButton);
+        await tester.tap(customColorButton);
+        await tester.pumpAndSettle();
+
+        final Finder hueSliderFinder = find.byKey(
+          const Key('habit_form_custom_color_hue_slider'),
+        );
+        final Finder saturationSliderFinder = find.byKey(
+          const Key('habit_form_custom_color_saturation_slider'),
+        );
+        final Finder brightnessSliderFinder = find.byKey(
+          const Key('habit_form_custom_color_brightness_slider'),
+        );
+        expect(hueSliderFinder, findsOneWidget);
+        expect(saturationSliderFinder, findsOneWidget);
+        expect(brightnessSliderFinder, findsOneWidget);
+
+        final Slider hueSlider = tester.widget<Slider>(hueSliderFinder);
+        hueSlider.onChanged?.call(210);
+        await tester.pump();
+        final Slider saturationSlider = tester.widget<Slider>(
+          saturationSliderFinder,
+        );
+        saturationSlider.onChanged?.call(54);
+        await tester.pump();
+        final Slider brightnessSlider = tester.widget<Slider>(
+          brightnessSliderFinder,
+        );
+        brightnessSlider.onChanged?.call(76);
+        await tester.pump();
+
+        await tester.tap(
+          find.byKey(const Key('habit_form_custom_color_apply_button')),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('habit_form_color_custom_selected')),
+          findsOneWidget,
+        );
+
+        await tester.enterText(
+          find.byKey(const Key('habit_form_name_field')),
+          'Custom Color Habit',
+        );
+        final Finder submitButton = find.byKey(
+          const Key('habit_form_submit_button'),
+        );
+        await tester.ensureVisible(submitButton);
+        await tester.tap(submitButton);
+        await tester.pumpAndSettle();
+
+        final Habit createdHabit = (await repository.listActiveHabits()).single;
+        expect(
+          RegExp(r'^#[0-9A-F]{6}$').hasMatch(createdHabit.colorHex),
+          isTrue,
+        );
+        expect(createdHabit.colorHex, createdHabit.colorHex.toUpperCase());
+      },
+    );
+
+    testWidgets(
+      'custom color picker remains stable on small screens with large text',
+      (final WidgetTester tester) async {
+        tester.view.physicalSize = const Size(320, 640);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'Existing Habit',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+          textScaleFactor: 1.8,
+        );
+
+        await tester.tap(find.byKey(const Key('home_add_habit_fab')));
+        await tester.pumpAndSettle();
+
+        final Finder customColorButton = find.byKey(
+          const Key('habit_form_custom_color_button'),
+        );
+        await tester.ensureVisible(customColorButton);
+        await tester.tap(customColorButton);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('habit_form_custom_color_hue_slider')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('habit_form_custom_color_saturation_slider')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('habit_form_custom_color_brightness_slider')),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets(
       'edit flow preserves non-preset stored color and icon without fallback',
@@ -2488,20 +2648,20 @@ void main() {
     ) async {
       const List<String> colorHexes = <String>[
         '#1C7C54',
-        '#255F85',
-        '#6A4C93',
-        '#8A2D3B',
-        '#B85C00',
-        '#2E7D32',
-        '#1565C0',
+        '#16A34A',
+        '#84CC16',
+        '#CA8A04',
+        '#EA580C',
+        '#DC2626',
+        '#BE123C',
+        '#DB2777',
+        '#A21CAF',
+        '#7C3AED',
+        '#4338CA',
+        '#2563EB',
+        '#0284C7',
         '#5D4037',
         '#0E7490',
-        '#7C3AED',
-        '#BE123C',
-        '#9A3412',
-        '#14532D',
-        '#1E3A8A',
-        '#374151',
         '#0F766E',
       ];
       final List<Habit> seedHabits = List<Habit>.generate(colorHexes.length, (
