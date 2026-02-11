@@ -147,11 +147,9 @@ class _HomeScreenState extends State<HomeScreen> {
         events: events,
         referenceLocalDayKey: todayLocalDayKey,
       );
-      final int bestStreak = calculatePositiveBestStreak(events: events);
       return _HabitTrackingSnapshot(
         isCompletedToday: isCompletedToday,
-        streakLabel:
-            'Streak: ${_formatDayCount(currentStreak)} (Best: ${_formatDayCount(bestStreak)})',
+        streakLabel: 'Streak: ${_formatDayCount(currentStreak)}',
         events: events,
       );
     }
@@ -1009,7 +1007,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _fallbackStreakSummary(final Habit habit) {
     return habit.mode == HabitMode.positive
-        ? 'Streak: 0 days (Best: 0 days)'
+        ? 'Streak: 0 days'
         : 'Started 0m ago';
   }
 }
@@ -1239,9 +1237,8 @@ class _HabitCard extends StatelessWidget {
     final String modeLabel = habit.mode == HabitMode.positive
         ? 'Positive habit'
         : 'Negative habit';
-    final String currentSummary = habit.mode == HabitMode.positive
-        ? '$streakSummary • ${isCompletedToday ? 'Done today' : 'Not done today'}'
-        : streakSummary;
+    final String currentSummary = streakSummary;
+    final String doneToday = isCompletedToday ? 'Done today' : 'Not done today';
 
     final IconData quickActionIcon = switch (habit.mode) {
       HabitMode.positive =>
@@ -1299,6 +1296,15 @@ class _HabitCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (habit.mode == HabitMode.positive)
+                  Text(
+                    doneToday,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: textColor),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 if (habit.note != null && habit.note!.isNotEmpty)
                   Text(
                     habit.note!,

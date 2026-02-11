@@ -201,10 +201,7 @@ void main() {
       );
 
       expect(find.textContaining('Not done today'), findsOneWidget);
-      expect(
-        find.textContaining('Streak: 0 days (Best: 0 days)'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Streak: 0 days'), findsOneWidget);
 
       await tester.tap(
         find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
@@ -212,10 +209,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Done today'), findsOneWidget);
-      expect(
-        find.textContaining('Streak: 1 day (Best: 1 day)'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Streak: 1 day'), findsOneWidget);
       List<HabitEvent> events = await eventRepository.listEventsForHabit(
         'habit-1',
       );
@@ -233,10 +227,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Not done today'), findsOneWidget);
-      expect(
-        find.textContaining('Streak: 0 days (Best: 0 days)'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Streak: 0 days'), findsOneWidget);
       events = await eventRepository.listEventsForHabit('habit-1');
       expect(events, isEmpty);
 
@@ -1676,10 +1667,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        find.text('Streak: 0 days (Best: 0 days) • Not done today'),
-        findsOneWidget,
-      );
+      expect(find.text('Streak: 0 days'), findsOneWidget);
+      expect(find.text('Not done today'), findsOneWidget);
 
       await tester.tap(
         find.byKey(
@@ -1696,10 +1685,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        find.text('Streak: 1 day (Best: 1 day) • Done today'),
-        findsOneWidget,
-      );
+      expect(find.text('Streak: 1 day'), findsOneWidget);
+      expect(find.text('Done today'), findsOneWidget);
       final List<HabitEvent> events = await eventRepository.listEventsForHabit(
         createdHabit.id,
       );
@@ -2064,10 +2051,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        find.text('Streak: 1 day (Best: 1 day) • Done today'),
-        findsOneWidget,
-      );
+      expect(find.text('Streak: 1 day'), findsOneWidget);
+      expect(find.text('Done today'), findsOneWidget);
 
       await tester.tap(
         find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
@@ -2081,10 +2066,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        find.text('Streak: 0 days (Best: 0 days) • Not done today'),
-        findsOneWidget,
-      );
+      expect(find.text('Streak: 0 days'), findsOneWidget);
+      expect(find.text('Not done today'), findsOneWidget);
 
       await tester.tap(
         find.byKey(const ValueKey<String>('habit_card_quick_action_habit-1')),
@@ -2098,10 +2081,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        find.text('Streak: 1 day (Best: 1 day) • Done today'),
-        findsOneWidget,
-      );
+      expect(find.text('Streak: 1 day'), findsOneWidget);
+      expect(find.text('Done today'), findsOneWidget);
 
       final List<HabitEvent> events = await eventRepository.listEventsForHabit(
         'habit-1',
