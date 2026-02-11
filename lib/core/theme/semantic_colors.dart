@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:habit_tracker/core/theme/app_colors.dart';
+
 @immutable
 class HabitSemanticColors extends ThemeExtension<HabitSemanticColors> {
   const HabitSemanticColors({
@@ -11,6 +13,18 @@ class HabitSemanticColors extends ThemeExtension<HabitSemanticColors> {
   final Color positive;
   final Color negative;
   final Color warning;
+
+  static const HabitSemanticColors light = HabitSemanticColors(
+    positive: AppColors.positive,
+    negative: AppColors.negative,
+    warning: AppColors.warning,
+  );
+
+  static const HabitSemanticColors dark = HabitSemanticColors(
+    positive: AppColors.positiveDark,
+    negative: AppColors.negativeDark,
+    warning: AppColors.warningDark,
+  );
 
   @override
   HabitSemanticColors copyWith({

@@ -2221,6 +2221,76 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('dark theme defaults keep global surfaces readable', (
+      final WidgetTester tester,
+    ) async {
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-1',
+              name: 'Read',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        ),
+        eventRepository: _FakeHabitEventRepository(),
+        clock: () => DateTime(2026, 2, 15, 9),
+      );
+
+      final ThemeData theme = Theme.of(tester.element(find.byType(HomeScreen)));
+      expect(theme.brightness, Brightness.dark);
+
+      _expectMinContrast(
+        foreground: theme.colorScheme.onSurface,
+        background: theme.colorScheme.surface,
+        contextLabel: 'surface',
+        minContrastRatio: 4.5,
+      );
+      _expectMinContrast(
+        foreground: theme.colorScheme.onSurface,
+        background:
+            theme.dialogTheme.backgroundColor ??
+            theme.colorScheme.surfaceContainerHighest,
+        contextLabel: 'dialog surface',
+        minContrastRatio: 4.5,
+      );
+      _expectMinContrast(
+        foreground:
+            theme.popupMenuTheme.textStyle?.color ??
+            theme.colorScheme.onSurface,
+        background:
+            theme.popupMenuTheme.color ??
+            theme.colorScheme.surfaceContainerHighest,
+        contextLabel: 'popup menu',
+        minContrastRatio: 4.5,
+      );
+      _expectMinContrast(
+        foreground:
+            theme.chipTheme.labelStyle?.color ??
+            theme.colorScheme.onSurfaceVariant,
+        background:
+            theme.chipTheme.backgroundColor ??
+            theme.colorScheme.surfaceContainerHighest,
+        contextLabel: 'chip',
+        minContrastRatio: 4.5,
+      );
+      _expectMinContrast(
+        foreground:
+            theme.snackBarTheme.contentTextStyle?.color ??
+            theme.colorScheme.onInverseSurface,
+        background:
+            theme.snackBarTheme.backgroundColor ??
+            theme.colorScheme.inverseSurface,
+        contextLabel: 'snackbar',
+        minContrastRatio: 4.5,
+      );
+    });
+
     testWidgets('habit card text and actions meet contrast thresholds', (
       final WidgetTester tester,
     ) async {
@@ -2443,7 +2513,12 @@ Future<void> _pumpHomeScreen({
   }
 
   await tester.pumpWidget(
-    MaterialApp(theme: AppTheme.light(), home: homeScreen),
+    MaterialApp(
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: ThemeMode.dark,
+      home: homeScreen,
+    ),
   );
   await tester.pumpAndSettle();
 }

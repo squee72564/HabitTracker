@@ -146,6 +146,8 @@ class _HabitTrackerAppState extends State<HabitTrackerApp> {
     return MaterialApp(
       title: 'Habit Tracker',
       theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: ThemeMode.dark,
       home: HomeScreen(
         habitRepository: _habitRepository,
         habitEventRepository: _habitEventRepository,
