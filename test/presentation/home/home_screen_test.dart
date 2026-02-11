@@ -838,50 +838,6 @@ void main() {
   });
 
   group('HomeScreen Stage 7 settings + reminders flows', () {
-    testWidgets('week start setting applies globally to grid headers', (
-      final WidgetTester tester,
-    ) async {
-      final _FakeHabitRepository repository = _FakeHabitRepository(
-        seedHabits: <Habit>[
-          Habit(
-            id: 'habit-1',
-            name: 'Read',
-            iconKey: 'book',
-            colorHex: '#1C7C54',
-            mode: HabitMode.positive,
-            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
-          ),
-        ],
-      );
-      final _FakeAppSettingsRepository appSettingsRepository =
-          _FakeAppSettingsRepository();
-
-      await _pumpHomeScreen(
-        tester: tester,
-        repository: repository,
-        eventRepository: _FakeHabitEventRepository(),
-        appSettingsRepository: appSettingsRepository,
-        clock: () => DateTime(2026, 2, 15, 9),
-      );
-
-      Text firstWeekday = tester.widget<Text>(
-        find.byKey(const ValueKey<String>('habit_grid_weekday_habit-1_0')),
-      );
-      expect(firstWeekday.data, 'M');
-
-      await tester.tap(find.byKey(const Key('home_open_settings_button')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('settings_week_start_switch')));
-      await tester.pumpAndSettle();
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-
-      firstWeekday = tester.widget<Text>(
-        find.byKey(const ValueKey<String>('habit_grid_weekday_habit-1_0')),
-      );
-      expect(firstWeekday.data, 'S');
-    });
-
     testWidgets('time format toggle updates reminder labels', (
       final WidgetTester tester,
     ) async {

@@ -2555,25 +2555,6 @@ const List<String> _habitColorHexOptions = <String>[
   '#0F766E',
 ];
 
-const List<String> _mondayWeekdayLabels = <String>[
-  'M',
-  'T',
-  'W',
-  'T',
-  'F',
-  'S',
-  'S',
-];
-const List<String> _sundayWeekdayLabels = <String>[
-  'S',
-  'M',
-  'T',
-  'W',
-  'T',
-  'F',
-  'S',
-];
-
 final Map<String, IconData> _habitIconByKey = <String, IconData>{
   for (final _HabitIconOption option in _habitIconOptions)
     option.key: option.icon,
