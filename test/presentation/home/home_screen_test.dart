@@ -2573,6 +2573,270 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('long-press opens positive details with correct metrics', (
+      final WidgetTester tester,
+    ) async {
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository(
+            seedEvents: <HabitEvent>[
+              HabitEvent(
+                id: 'event-1',
+                habitId: 'habit-1',
+                eventType: HabitEventType.complete,
+                occurredAtUtc: DateTime.utc(2026, 2, 1, 8),
+                localDayKey: '2026-02-01',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+              HabitEvent(
+                id: 'event-2',
+                habitId: 'habit-1',
+                eventType: HabitEventType.complete,
+                occurredAtUtc: DateTime.utc(2026, 2, 2, 8),
+                localDayKey: '2026-02-02',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+              HabitEvent(
+                id: 'event-3',
+                habitId: 'habit-1',
+                eventType: HabitEventType.complete,
+                occurredAtUtc: DateTime.utc(2026, 2, 3, 8),
+                localDayKey: '2026-02-03',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+              HabitEvent(
+                id: 'event-4',
+                habitId: 'habit-1',
+                eventType: HabitEventType.complete,
+                occurredAtUtc: DateTime.utc(2026, 2, 14, 8),
+                localDayKey: '2026-02-14',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+              HabitEvent(
+                id: 'event-5',
+                habitId: 'habit-1',
+                eventType: HabitEventType.complete,
+                occurredAtUtc: DateTime.utc(2026, 2, 15, 8),
+                localDayKey: '2026-02-15',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+            ],
+          );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => DateTime(2026, 2, 15, 9),
+      );
+
+      await tester.longPress(
+        find.byKey(const ValueKey<String>('habit_card_details_target_habit-1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('habit_details_sheet_habit-1')),
+        findsOneWidget,
+      );
+      expect(find.text('Positive habit details'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('habit_details_value_current_streak'),
+              ),
+            )
+            .data,
+        '2 days',
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('habit_details_value_best_streak'),
+              ),
+            )
+            .data,
+        '3 days',
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('habit_details_value_total_events'),
+              ),
+            )
+            .data,
+        '5 days',
+      );
+
+      await tester.tap(find.byKey(const Key('habit_details_close_button')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('habit_details_sheet_habit-1')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('long-press opens negative details with relapse-aware labels', (
+      final WidgetTester tester,
+    ) async {
+      final DateTime nowUtc = DateTime.utc(2026, 2, 15, 12, 30);
+      final DateTime nowLocal = nowUtc.toLocal();
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'No Soda',
+            iconKey: 'water',
+            colorHex: '#8A2D3B',
+            mode: HabitMode.negative,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+      final _FakeHabitEventRepository eventRepository =
+          _FakeHabitEventRepository(
+            seedEvents: <HabitEvent>[
+              HabitEvent(
+                id: 'event-1',
+                habitId: 'habit-1',
+                eventType: HabitEventType.relapse,
+                occurredAtUtc: DateTime.utc(2026, 2, 5, 9),
+                localDayKey: '2026-02-05',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+              HabitEvent(
+                id: 'event-2',
+                habitId: 'habit-1',
+                eventType: HabitEventType.relapse,
+                occurredAtUtc: DateTime.utc(2026, 2, 10, 10),
+                localDayKey: '2026-02-10',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+              HabitEvent(
+                id: 'event-3',
+                habitId: 'habit-1',
+                eventType: HabitEventType.relapse,
+                occurredAtUtc: DateTime.utc(2026, 2, 14, 7),
+                localDayKey: '2026-02-14',
+                tzOffsetMinutesAtEvent: 0,
+              ),
+            ],
+          );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: eventRepository,
+        clock: () => nowLocal,
+      );
+
+      await tester.longPress(
+        find.byKey(const ValueKey<String>('habit_card_details_target_habit-1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Negative habit details'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('habit_details_value_current_streak'),
+              ),
+            )
+            .data,
+        '1d 5h',
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('habit_details_value_best_streak'),
+              ),
+            )
+            .data,
+        '5d 1h',
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey<String>('habit_details_value_total_events'),
+              ),
+            )
+            .data,
+        '3 relapses',
+      );
+      expect(find.text('Current relapse-free streak'), findsOneWidget);
+      expect(find.text('Best relapse-free streak'), findsOneWidget);
+      expect(find.text('Total relapses'), findsOneWidget);
+    });
+
+    testWidgets('long-press details include explicit semantics labels', (
+      final WidgetTester tester,
+    ) async {
+      final SemanticsHandle semantics = tester.ensureSemantics();
+      try {
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: _FakeHabitRepository(
+            seedHabits: <Habit>[
+              Habit(
+                id: 'habit-1',
+                name: 'Read',
+                iconKey: 'book',
+                colorHex: '#1C7C54',
+                mode: HabitMode.positive,
+                createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+              ),
+            ],
+          ),
+          eventRepository: _FakeHabitEventRepository(),
+          clock: () => DateTime(2026, 2, 15, 9),
+        );
+
+        expect(
+          find.bySemanticsLabel(RegExp('Long press for details on Read')),
+          findsWidgets,
+        );
+
+        await tester.longPress(
+          find.byKey(
+            const ValueKey<String>('habit_card_details_target_habit-1'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.bySemanticsLabel(RegExp('Current completion streak: 0 days')),
+          findsWidgets,
+        );
+        expect(
+          find.bySemanticsLabel(RegExp('Best completion streak: 0 days')),
+          findsWidgets,
+        );
+        expect(
+          find.bySemanticsLabel(RegExp('Total completion days: 0 days')),
+          findsWidgets,
+        );
+      } finally {
+        semantics.dispose();
+      }
+    });
+
     testWidgets('dark theme defaults keep global surfaces readable', (
       final WidgetTester tester,
     ) async {

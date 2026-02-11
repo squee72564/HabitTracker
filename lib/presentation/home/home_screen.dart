@@ -992,6 +992,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   weekStart: _appSettings.weekStart,
                 ),
                 onQuickAction: () => _onQuickActionTap(habit),
+                onShowDetails: () {
+                  _showHabitDetails(habit);
+                },
                 onGridCellTap: (final HabitMonthCell cell) =>
                     _onGridCellTap(habit: habit, cell: cell),
                 onEdit: () => _editHabit(habit),
@@ -1003,6 +1006,173 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _showHabitDetails(final Habit habit) async {
+    final DateTime nowLocal = widget.clock();
+    final List<HabitEvent> events =
+        _eventsByHabitId[habit.id] ?? const <HabitEvent>[];
+    final _HabitDetailsSnapshot details = _buildHabitDetailsSnapshot(
+      habit: habit,
+      events: events,
+      nowLocal: nowLocal,
+    );
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (final BuildContext context) {
+        return _HabitDetailsSheet(details: details);
+      },
+    );
+  }
+
+  _HabitDetailsSnapshot _buildHabitDetailsSnapshot({
+    required final Habit habit,
+    required final List<HabitEvent> events,
+    required final DateTime nowLocal,
+  }) {
+    if (habit.mode == HabitMode.positive) {
+      final String referenceLocalDayKey = toLocalDayKey(nowLocal);
+      final int currentStreak = calculatePositiveCurrentStreak(
+        events: events,
+        referenceLocalDayKey: referenceLocalDayKey,
+      );
+      final int bestStreak = calculatePositiveBestStreak(events: events);
+      final int totalCompletions = events
+          .where(
+            (final HabitEvent event) =>
+                event.eventType == HabitEventType.complete,
+          )
+          .map((final HabitEvent event) => event.localDayKey)
+          .toSet()
+          .length;
+      return _HabitDetailsSnapshot(
+        habitId: habit.id,
+        habitName: habit.name,
+        iconKey: habit.iconKey,
+        modeSummary: 'Positive habit details',
+        metrics: <_HabitDetailMetric>[
+          _HabitDetailMetric(
+            id: 'current_streak',
+            label: 'Current completion streak',
+            value: _formatDayCount(currentStreak),
+            semanticsLabel:
+                'Current completion streak: ${_formatDayCount(currentStreak)}',
+          ),
+          _HabitDetailMetric(
+            id: 'best_streak',
+            label: 'Best completion streak',
+            value: _formatDayCount(bestStreak),
+            semanticsLabel:
+                'Best completion streak: ${_formatDayCount(bestStreak)}',
+          ),
+          _HabitDetailMetric(
+            id: 'total_events',
+            label: 'Total completion days',
+            value: _formatDayCount(totalCompletions),
+            semanticsLabel:
+                'Total completion days: ${_formatDayCount(totalCompletions)}',
+          ),
+        ],
+      );
+    }
+
+    final DateTime nowUtc = nowLocal.toUtc();
+    final Duration currentStreak =
+        calculateNegativeCurrentStreak(events: events, nowUtc: nowUtc) ??
+        calculateDurationSinceUtc(
+          startedAtUtc: habit.createdAtUtc,
+          nowUtc: nowUtc,
+        );
+    final Duration bestStreak = _calculateNegativeBestStreak(
+      habit: habit,
+      events: events,
+      nowUtc: nowUtc,
+    );
+    final int totalRelapses = events
+        .where(
+          (final HabitEvent event) => event.eventType == HabitEventType.relapse,
+        )
+        .length;
+    final String currentStreakLabel = formatElapsedDurationShort(currentStreak);
+    final String bestStreakLabel = formatElapsedDurationShort(bestStreak);
+    return _HabitDetailsSnapshot(
+      habitId: habit.id,
+      habitName: habit.name,
+      iconKey: habit.iconKey,
+      modeSummary: 'Negative habit details',
+      metrics: <_HabitDetailMetric>[
+        _HabitDetailMetric(
+          id: 'current_streak',
+          label: 'Current relapse-free streak',
+          value: currentStreakLabel,
+          semanticsLabel: 'Current relapse-free streak: $currentStreakLabel',
+        ),
+        _HabitDetailMetric(
+          id: 'best_streak',
+          label: 'Best relapse-free streak',
+          value: bestStreakLabel,
+          semanticsLabel: 'Best relapse-free streak: $bestStreakLabel',
+        ),
+        _HabitDetailMetric(
+          id: 'total_events',
+          label: 'Total relapses',
+          value: _formatCount(
+            totalRelapses,
+            singularNoun: 'relapse',
+            pluralNoun: 'relapses',
+          ),
+          semanticsLabel:
+              'Total relapses: ${_formatCount(totalRelapses, singularNoun: 'relapse', pluralNoun: 'relapses')}',
+        ),
+      ],
+    );
+  }
+
+  Duration _calculateNegativeBestStreak({
+    required final Habit habit,
+    required final List<HabitEvent> events,
+    required final DateTime nowUtc,
+  }) {
+    final List<DateTime> sortedRelapseInstants =
+        events
+            .where(
+              (final HabitEvent event) =>
+                  event.eventType == HabitEventType.relapse,
+            )
+            .map((final HabitEvent event) => event.occurredAtUtc)
+            .toList(growable: false)
+          ..sort((final DateTime a, final DateTime b) => a.compareTo(b));
+    if (sortedRelapseInstants.isEmpty) {
+      return calculateDurationSinceUtc(
+        startedAtUtc: habit.createdAtUtc,
+        nowUtc: nowUtc,
+      );
+    }
+    DateTime boundary = habit.createdAtUtc;
+    Duration best = Duration.zero;
+    for (final DateTime relapseUtc in sortedRelapseInstants) {
+      final Duration candidate = calculateDurationSinceUtc(
+        startedAtUtc: boundary,
+        nowUtc: relapseUtc,
+      );
+      if (candidate > best) {
+        best = candidate;
+      }
+      if (relapseUtc.isAfter(boundary)) {
+        boundary = relapseUtc;
+      }
+    }
+    final Duration sinceBoundary = calculateDurationSinceUtc(
+      startedAtUtc: boundary,
+      nowUtc: nowUtc,
+    );
+    if (sinceBoundary > best) {
+      best = sinceBoundary;
+    }
+    return best;
   }
 
   String _fallbackStreakSummary(final Habit habit) {
@@ -1045,6 +1215,36 @@ class _GridEditGuardResult {
 
   final bool isAllowed;
   final String? feedbackMessage;
+}
+
+class _HabitDetailsSnapshot {
+  const _HabitDetailsSnapshot({
+    required this.habitId,
+    required this.habitName,
+    required this.iconKey,
+    required this.modeSummary,
+    required this.metrics,
+  });
+
+  final String habitId;
+  final String habitName;
+  final String iconKey;
+  final String modeSummary;
+  final List<_HabitDetailMetric> metrics;
+}
+
+class _HabitDetailMetric {
+  const _HabitDetailMetric({
+    required this.id,
+    required this.label,
+    required this.value,
+    required this.semanticsLabel,
+  });
+
+  final String id;
+  final String label;
+  final String value;
+  final String semanticsLabel;
 }
 
 class _MonthNavigationBar extends StatelessWidget {
@@ -1211,6 +1411,7 @@ class _HabitCard extends StatelessWidget {
     required this.isTrackingActionInProgress,
     required this.monthlyCells,
     required this.onQuickAction,
+    required this.onShowDetails,
     required this.onGridCellTap,
     required this.onEdit,
     required this.onBackdateRelapse,
@@ -1224,6 +1425,7 @@ class _HabitCard extends StatelessWidget {
   final bool isTrackingActionInProgress;
   final List<HabitMonthCell> monthlyCells;
   final Future<void> Function() onQuickAction;
+  final VoidCallback onShowDetails;
   final Future<void> Function(HabitMonthCell cell) onGridCellTap;
   final Future<void> Function() onEdit;
   final Future<void> Function() onBackdateRelapse;
@@ -1248,6 +1450,9 @@ class _HabitCard extends StatelessWidget {
     final String modeLabel = habit.mode == HabitMode.positive
         ? 'Positive habit'
         : 'Negative habit';
+    final String detailsHint = habit.mode == HabitMode.positive
+        ? 'Long press to view completion streak details and totals.'
+        : 'Long press to view relapse-free streak details and totals.';
     final String currentSummary = streakSummary;
     final String doneToday = isCompletedToday ? 'Done today' : 'Not done today';
 
@@ -1280,132 +1485,147 @@ class _HabitCard extends StatelessWidget {
             height: 4,
             color: accentColor.withValues(alpha: 0.9),
           ),
-          ListTile(
-            contentPadding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.xs,
-              AppSpacing.sm,
-              AppSpacing.xs,
-            ),
-            leading: CircleAvatar(
-              key: ValueKey<String>('habit_card_avatar_${habit.id}'),
-              backgroundColor: avatarBackgroundColor,
-              child: Icon(_iconForKey(habit.iconKey), color: textColor),
-            ),
-            title: Text(
-              habit.name,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(color: textColor),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  modeLabel,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: supportingTextColor),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  currentSummary,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: textColor),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (habit.mode == HabitMode.positive)
+          Semantics(
+            key: ValueKey<String>('habit_card_details_target_${habit.id}'),
+            label: 'Long press for details on ${habit.name}',
+            hint: detailsHint,
+            button: true,
+            child: ListTile(
+              onLongPress: onShowDetails,
+              contentPadding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.xs,
+                AppSpacing.sm,
+                AppSpacing.xs,
+              ),
+              leading: CircleAvatar(
+                key: ValueKey<String>('habit_card_avatar_${habit.id}'),
+                backgroundColor: avatarBackgroundColor,
+                child: Icon(_iconForKey(habit.iconKey), color: textColor),
+              ),
+              title: Text(
+                habit.name,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: textColor),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
                   Text(
-                    doneToday,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: statusColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                if (habit.mode == HabitMode.negative)
-                  Text(
-                    hasRelapseHistory ? 'Relapse logged' : 'No relapse logged',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: statusColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                if (habit.note != null && habit.note!.isNotEmpty)
-                  Text(
-                    habit.note!,
+                    modeLabel,
                     style: Theme.of(
                       context,
                     ).textTheme.bodySmall?.copyWith(color: supportingTextColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                IconButton(
-                  key: ValueKey<String>('habit_card_quick_action_${habit.id}'),
-                  onPressed: isTrackingActionInProgress ? null : onQuickAction,
-                  icon: isTrackingActionInProgress
-                      ? SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              textColor,
-                            ),
-                          ),
-                        )
-                      : Icon(quickActionIcon),
-                  tooltip: quickActionTooltip,
-                  color: textColor,
-                ),
-                PopupMenuButton<_HabitCardMenuAction>(
-                  key: ValueKey<String>('habit_card_menu_${habit.id}'),
-                  iconColor: textColor,
-                  onSelected: (final _HabitCardMenuAction value) {
-                    switch (value) {
-                      case _HabitCardMenuAction.edit:
-                        onEdit();
-                      case _HabitCardMenuAction.backdateRelapse:
-                        onBackdateRelapse();
-                      case _HabitCardMenuAction.archive:
-                        onArchive();
-                    }
-                  },
-                  itemBuilder: (final BuildContext context) {
-                    return <PopupMenuEntry<_HabitCardMenuAction>>[
-                      PopupMenuItem<_HabitCardMenuAction>(
-                        key: ValueKey<String>('habit_card_edit_${habit.id}'),
-                        value: _HabitCardMenuAction.edit,
-                        child: const Text('Edit Habit'),
+                  Text(
+                    currentSummary,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: textColor),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (habit.mode == HabitMode.positive)
+                    Text(
+                      doneToday,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: statusColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  if (habit.mode == HabitMode.negative)
+                    Text(
+                      hasRelapseHistory
+                          ? 'Relapse logged'
+                          : 'No relapse logged',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: statusColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  if (habit.note != null && habit.note!.isNotEmpty)
+                    Text(
+                      habit.note!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: supportingTextColor,
                       ),
-                      if (habit.mode == HabitMode.negative)
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  IconButton(
+                    key: ValueKey<String>(
+                      'habit_card_quick_action_${habit.id}',
+                    ),
+                    onPressed: isTrackingActionInProgress
+                        ? null
+                        : onQuickAction,
+                    icon: isTrackingActionInProgress
+                        ? SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                textColor,
+                              ),
+                            ),
+                          )
+                        : Icon(quickActionIcon),
+                    tooltip: quickActionTooltip,
+                    color: textColor,
+                  ),
+                  PopupMenuButton<_HabitCardMenuAction>(
+                    key: ValueKey<String>('habit_card_menu_${habit.id}'),
+                    iconColor: textColor,
+                    onSelected: (final _HabitCardMenuAction value) {
+                      switch (value) {
+                        case _HabitCardMenuAction.edit:
+                          onEdit();
+                        case _HabitCardMenuAction.backdateRelapse:
+                          onBackdateRelapse();
+                        case _HabitCardMenuAction.archive:
+                          onArchive();
+                      }
+                    },
+                    itemBuilder: (final BuildContext context) {
+                      return <PopupMenuEntry<_HabitCardMenuAction>>[
+                        PopupMenuItem<_HabitCardMenuAction>(
+                          key: ValueKey<String>('habit_card_edit_${habit.id}'),
+                          value: _HabitCardMenuAction.edit,
+                          child: const Text('Edit Habit'),
+                        ),
+                        if (habit.mode == HabitMode.negative)
+                          PopupMenuItem<_HabitCardMenuAction>(
+                            key: ValueKey<String>(
+                              'habit_card_backdate_relapse_${habit.id}',
+                            ),
+                            value: _HabitCardMenuAction.backdateRelapse,
+                            child: const Text('Backdate Relapse'),
+                          ),
                         PopupMenuItem<_HabitCardMenuAction>(
                           key: ValueKey<String>(
-                            'habit_card_backdate_relapse_${habit.id}',
+                            'habit_card_archive_${habit.id}',
                           ),
-                          value: _HabitCardMenuAction.backdateRelapse,
-                          child: const Text('Backdate Relapse'),
+                          value: _HabitCardMenuAction.archive,
+                          child: const Text('Archive Habit'),
                         ),
-                      PopupMenuItem<_HabitCardMenuAction>(
-                        key: ValueKey<String>('habit_card_archive_${habit.id}'),
-                        value: _HabitCardMenuAction.archive,
-                        child: const Text('Archive Habit'),
-                      ),
-                    ];
-                  },
-                ),
-              ],
+                      ];
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
           Padding(
@@ -1421,6 +1641,112 @@ class _HabitCard extends StatelessWidget {
               accentColor: accentColor,
               onCellTap: isTrackingActionInProgress ? null : onGridCellTap,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitDetailsSheet extends StatelessWidget {
+  const _HabitDetailsSheet({required this.details});
+
+  final _HabitDetailsSnapshot details;
+
+  @override
+  Widget build(final BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    return SingleChildScrollView(
+      key: ValueKey<String>('habit_details_sheet_${details.habitId}'),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              CircleAvatar(
+                backgroundColor: colorScheme.surfaceContainerHigh,
+                child: Icon(_iconForKey(details.iconKey)),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  details.habitName,
+                  style: Theme.of(context).textTheme.titleLarge,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            details.modeSummary,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (
+            int index = 0;
+            index < details.metrics.length;
+            index += 1
+          ) ...<Widget>[
+            _HabitDetailMetricRow(metric: details.metrics[index]),
+            if (index < details.metrics.length - 1)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                child: Divider(height: 1),
+              ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              key: const Key('habit_details_close_button'),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitDetailMetricRow extends StatelessWidget {
+  const _HabitDetailMetricRow({required this.metric});
+
+  final _HabitDetailMetric metric;
+
+  @override
+  Widget build(final BuildContext context) {
+    return Semantics(
+      label: metric.semanticsLabel,
+      readOnly: true,
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              metric.label,
+              key: ValueKey<String>('habit_details_metric_${metric.id}'),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            metric.value,
+            key: ValueKey<String>('habit_details_value_${metric.id}'),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -2681,6 +3007,15 @@ String _formatDayCount(final int dayCount) {
     return '1 day';
   }
   return '$dayCount days';
+}
+
+String _formatCount(
+  final int count, {
+  required final String singularNoun,
+  required final String pluralNoun,
+}) {
+  final String noun = count == 1 ? singularNoun : pluralNoun;
+  return '$count $noun';
 }
 
 String _generateHabitId() {
