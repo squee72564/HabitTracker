@@ -676,7 +676,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final DateTime nowLocal = widget.clock();
     final _GridEditGuardResult guardResult = _evaluateGridEditGuard(
-      habit: habit,
       localDayKey: cell.localDayKey,
       nowLocal: nowLocal,
     );
@@ -736,7 +735,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   _GridEditGuardResult _evaluateGridEditGuard({
-    required final Habit habit,
     required final String localDayKey,
     required final DateTime nowLocal,
   }) {
@@ -748,18 +746,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    if (habit.mode == HabitMode.positive) {
-      return const _GridEditGuardResult.allowed();
-    }
-
-    final DateTime earliestAllowedDate = todayDate.subtract(
-      const Duration(days: 7),
-    );
-    if (targetDate.isBefore(earliestAllowedDate)) {
-      return const _GridEditGuardResult.blocked(
-        'Negative habits can only edit today and the last 7 days.',
-      );
-    }
     return const _GridEditGuardResult.allowed();
   }
 

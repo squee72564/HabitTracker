@@ -902,7 +902,8 @@ void main() {
           ),
         );
         await tester.ensureVisible(tapTarget);
-        await tester.tap(tapTarget);
+        // Guardrail assertion only needs to confirm no event write occurred.
+        await tester.tap(tapTarget, warnIfMissed: false);
         await tester.pump();
         positiveEvents = await eventRepository.listEventsForHabit(
           'habit-positive',
@@ -917,10 +918,11 @@ void main() {
         await tester.ensureVisible(tapTarget);
         await tester.tap(tapTarget);
         await tester.pump();
-        expect(
-          await eventRepository.listEventsForHabit('habit-negative'),
-          isEmpty,
-        );
+        final List<HabitEvent> negativeEvents = await eventRepository
+            .listEventsForHabit('habit-negative');
+        expect(negativeEvents, hasLength(1));
+        expect(negativeEvents.single.localDayKey, '2026-02-07');
+        expect(negativeEvents.single.eventType, HabitEventType.relapse);
 
         tapTarget = find.byKey(
           const ValueKey<String>(
@@ -957,7 +959,7 @@ void main() {
       },
     );
 
-    testWidgets('rapid guard messages always show the latest event first', (
+    testWidgets('rapid feedback messages always show the latest event first', (
       final WidgetTester tester,
     ) async {
       final _FakeHabitRepository repository = _FakeHabitRepository(
@@ -996,17 +998,14 @@ void main() {
       await tester.pump();
       expect(find.text('Future days cannot be edited.'), findsOneWidget);
 
-      final Finder negativeOldCell = find.byKey(
-        const ValueKey<String>('habit_grid_cell_tap_habit-negative_2026-02-05'),
+      final Finder negativeTodayCell = find.byKey(
+        const ValueKey<String>('habit_grid_cell_tap_habit-negative_2026-02-14'),
       );
-      await tester.ensureVisible(negativeOldCell);
-      await tester.tap(negativeOldCell);
-      await tester.pump();
+      await tester.ensureVisible(negativeTodayCell);
+      await tester.tap(negativeTodayCell);
+      await tester.pumpAndSettle();
 
-      expect(
-        find.text('Negative habits can only edit today and the last 7 days.'),
-        findsOneWidget,
-      );
+      expect(find.text('Relapse logged for 2026-02-14.'), findsOneWidget);
       expect(find.text('Future days cannot be edited.'), findsNothing);
     });
 
