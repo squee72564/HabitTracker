@@ -1425,36 +1425,7 @@ class _HabitMonthGrid extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              mode == HabitMode.positive
-                  ? 'Monthly consistency'
-                  : 'Monthly relapse markers',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: textColor.withValues(alpha: 0.95),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
             const SizedBox(height: AppSpacing.xs),
-            Row(
-              children: List<Widget>.generate(weekdayLabels.length, (
-                final int index,
-              ) {
-                final String label = weekdayLabels[index];
-                return Expanded(
-                  child: Text(
-                    label,
-                    key: ValueKey<String>(
-                      'habit_grid_weekday_${habitId}_$index',
-                    ),
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: textColor.withValues(alpha: 0.7),
-                    ),
-                  ),
-                );
-              }),
-            ),
             const SizedBox(height: AppSpacing.xs),
             Wrap(
               spacing: spacing,
