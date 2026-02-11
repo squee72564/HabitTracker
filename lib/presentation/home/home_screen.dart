@@ -950,9 +950,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _visibleMonth.year == currentMonth.year &&
         _visibleMonth.month == currentMonth.month;
     final String todayLocalDayKey = toLocalDayKey(nowLocal);
-    final List<String> weekdayLabels = _weekdayLabelsForWeekStart(
-      _appSettings.weekStart,
-    );
 
     return Column(
       children: <Widget>[
@@ -996,7 +993,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   referenceTodayLocalDayKey: todayLocalDayKey,
                   weekStart: _appSettings.weekStart,
                 ),
-                weekdayLabels: weekdayLabels,
                 onQuickAction: () => _onQuickActionTap(habit),
                 onGridCellTap: (final HabitMonthCell cell) =>
                     _onGridCellTap(habit: habit, cell: cell),
@@ -1216,7 +1212,6 @@ class _HabitCard extends StatelessWidget {
     required this.hasRelapseHistory,
     required this.isTrackingActionInProgress,
     required this.monthlyCells,
-    required this.weekdayLabels,
     required this.onQuickAction,
     required this.onGridCellTap,
     required this.onEdit,
@@ -1230,7 +1225,6 @@ class _HabitCard extends StatelessWidget {
   final bool hasRelapseHistory;
   final bool isTrackingActionInProgress;
   final List<HabitMonthCell> monthlyCells;
-  final List<String> weekdayLabels;
   final Future<void> Function() onQuickAction;
   final Future<void> Function(HabitMonthCell cell) onGridCellTap;
   final Future<void> Function() onEdit;
@@ -1387,7 +1381,6 @@ class _HabitCard extends StatelessWidget {
               cells: monthlyCells,
               mode: habit.mode,
               textColor: textColor,
-              weekdayLabels: weekdayLabels,
               onCellTap: isTrackingActionInProgress ? null : onGridCellTap,
             ),
           ),
@@ -1403,7 +1396,6 @@ class _HabitMonthGrid extends StatelessWidget {
     required this.cells,
     required this.mode,
     required this.textColor,
-    required this.weekdayLabels,
     required this.onCellTap,
   });
 
@@ -1411,7 +1403,6 @@ class _HabitMonthGrid extends StatelessWidget {
   final List<HabitMonthCell> cells;
   final HabitMode mode;
   final Color textColor;
-  final List<String> weekdayLabels;
   final Future<void> Function(HabitMonthCell cell)? onCellTap;
 
   @override
@@ -2662,10 +2653,3 @@ String _formatBackdateDateLabel(final DateTime localDate) {
 }
 
 DateTime _systemNow() => DateTime.now();
-
-List<String> _weekdayLabelsForWeekStart(final AppWeekStart weekStart) {
-  return switch (weekStart) {
-    AppWeekStart.monday => _mondayWeekdayLabels,
-    AppWeekStart.sunday => _sundayWeekdayLabels,
-  };
-}
