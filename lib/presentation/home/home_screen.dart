@@ -910,7 +910,7 @@ class _HomeScreenState extends State<HomeScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Habit'),
       ),
-      body: _buildBody(context),
+      body: SafeArea(child: _buildBody(context)),
     );
   }
 
