@@ -89,7 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(final BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: _buildBody(context),
+      body: SafeArea(child: _buildBody(context)),
     );
   }
 
