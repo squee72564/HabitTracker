@@ -624,7 +624,14 @@ void main() {
       expect(doneDecoration.color, isNot(equals(missedDecoration.color)));
       expect(doneDecoration.color, isNot(equals(futureDecoration.color)));
       expect(missedDecoration.color, isNot(equals(futureDecoration.color)));
-      expect(futureDecoration.color?.a, lessThan(doneDecoration.color?.a ?? 1));
+      expect(
+        futureDecoration.color?.a,
+        lessThan(missedDecoration.color?.a ?? 1),
+      );
+      expect(
+        (missedDecoration.color?.a ?? 0) - (futureDecoration.color?.a ?? 0),
+        greaterThan(0.5),
+      );
 
       final Border doneBorder = doneDecoration.border! as Border;
       final Border missedBorder = missedDecoration.border! as Border;
@@ -737,27 +744,19 @@ void main() {
       );
       expect(relapseDecoration.color, isNot(equals(clearDecoration.color)));
       expect(relapseDecoration.color, isNot(equals(futureDecoration.color)));
+      expect(clearDecoration.color, isNot(equals(futureDecoration.color)));
       expect(
         futureDecoration.color?.a,
-        lessThan(relapseDecoration.color?.a ?? 1),
+        lessThan(clearDecoration.color?.a ?? 1),
+      );
+      expect(
+        (clearDecoration.color?.a ?? 0) - (futureDecoration.color?.a ?? 0),
+        greaterThan(0.5),
       );
 
       final Border relapseBorder = relapseDecoration.border! as Border;
       final Border clearBorder = clearDecoration.border! as Border;
       expect(relapseBorder.top.color, isNot(equals(clearBorder.top.color)));
-
-      final Finder relapseDotFinder = find.descendant(
-        of: relapseCellFinder,
-        matching: find.byWidgetPredicate((final Widget widget) {
-          if (widget is! Container) {
-            return false;
-          }
-          final Decoration? decoration = widget.decoration;
-          return decoration is BoxDecoration &&
-              decoration.shape == BoxShape.circle;
-        }),
-      );
-      expect(relapseDotFinder, findsOneWidget);
 
       final Text relapseDayLabel = tester.widget<Text>(
         find.descendant(of: relapseCellFinder, matching: find.text('12')),
@@ -772,6 +771,169 @@ void main() {
         minContrastRatio: 4.5,
       );
     });
+
+    testWidgets(
+      'non-toggled past/current cells use the same neutral styling in both modes',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-positive',
+              name: 'Read',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+            Habit(
+              id: 'habit-negative',
+              name: 'No Soda',
+              iconKey: 'water',
+              colorHex: '#8A2D3B',
+              mode: HabitMode.negative,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+          clock: () => DateTime(2026, 2, 15, 9),
+        );
+
+        final Finder positiveMissedCellFinder = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-positive_2026-02-14_positiveMissed',
+          ),
+        );
+        final Finder negativeClearCellFinder = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-negative_2026-02-14_negativeClear',
+          ),
+        );
+
+        final BoxDecoration positiveMissedDecoration = _gridCellDecoration(
+          tester: tester,
+          cellFinder: positiveMissedCellFinder,
+        );
+        final BoxDecoration negativeClearDecoration = _gridCellDecoration(
+          tester: tester,
+          cellFinder: negativeClearCellFinder,
+        );
+
+        final Border positiveMissedBorder =
+            positiveMissedDecoration.border! as Border;
+        final Border negativeClearBorder =
+            negativeClearDecoration.border! as Border;
+        expect(
+          positiveMissedDecoration.color,
+          equals(negativeClearDecoration.color),
+        );
+        expect(
+          positiveMissedBorder.top.color,
+          equals(negativeClearBorder.top.color),
+        );
+        expect(
+          positiveMissedBorder.top.width,
+          equals(negativeClearBorder.top.width),
+        );
+      },
+    );
+
+    testWidgets(
+      'today neutral cells use solid white fill with a thicker outline',
+      (final WidgetTester tester) async {
+        final _FakeHabitRepository repository = _FakeHabitRepository(
+          seedHabits: <Habit>[
+            Habit(
+              id: 'habit-positive',
+              name: 'Read',
+              iconKey: 'book',
+              colorHex: '#1C7C54',
+              mode: HabitMode.positive,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+            Habit(
+              id: 'habit-negative',
+              name: 'No Soda',
+              iconKey: 'water',
+              colorHex: '#8A2D3B',
+              mode: HabitMode.negative,
+              createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+            ),
+          ],
+        );
+
+        await _pumpHomeScreen(
+          tester: tester,
+          repository: repository,
+          eventRepository: _FakeHabitEventRepository(),
+          clock: () => DateTime(2026, 2, 15, 9),
+        );
+
+        final Finder positiveTodayCellFinder = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-positive_2026-02-15_positiveMissed',
+          ),
+        );
+        final Finder positivePriorCellFinder = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-positive_2026-02-14_positiveMissed',
+          ),
+        );
+        final Finder negativeTodayCellFinder = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-negative_2026-02-15_negativeClear',
+          ),
+        );
+        final Finder negativePriorCellFinder = find.byKey(
+          const ValueKey<String>(
+            'habit_grid_cell_habit-negative_2026-02-14_negativeClear',
+          ),
+        );
+
+        final BoxDecoration positiveTodayDecoration = _gridCellDecoration(
+          tester: tester,
+          cellFinder: positiveTodayCellFinder,
+        );
+        final BoxDecoration positivePriorDecoration = _gridCellDecoration(
+          tester: tester,
+          cellFinder: positivePriorCellFinder,
+        );
+        final BoxDecoration negativeTodayDecoration = _gridCellDecoration(
+          tester: tester,
+          cellFinder: negativeTodayCellFinder,
+        );
+        final BoxDecoration negativePriorDecoration = _gridCellDecoration(
+          tester: tester,
+          cellFinder: negativePriorCellFinder,
+        );
+
+        final Border positiveTodayBorder =
+            positiveTodayDecoration.border! as Border;
+        final Border positivePriorBorder =
+            positivePriorDecoration.border! as Border;
+        final Border negativeTodayBorder =
+            negativeTodayDecoration.border! as Border;
+        final Border negativePriorBorder =
+            negativePriorDecoration.border! as Border;
+
+        expect(positiveTodayDecoration.color, equals(Colors.white));
+        expect(negativeTodayDecoration.color, equals(Colors.white));
+        expect(positivePriorDecoration.color, isNot(equals(Colors.white)));
+        expect(negativePriorDecoration.color, isNot(equals(Colors.white)));
+        expect(
+          positiveTodayBorder.top.width,
+          greaterThan(positivePriorBorder.top.width),
+        );
+        expect(
+          negativeTodayBorder.top.width,
+          greaterThan(negativePriorBorder.top.width),
+        );
+      },
+    );
 
     testWidgets(
       'positive grid tap toggles completion and preserves persisted day invariants',

@@ -968,6 +968,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 isTrackingActionInProgress: _trackingHabitIds.contains(
                   habit.id,
                 ),
+                referenceTodayLocalDayKey: todayLocalDayKey,
                 monthlyCells: buildHabitMonthCells(
                   mode: habit.mode,
                   events: _eventsByHabitId[habit.id] ?? const <HabitEvent>[],
@@ -1393,6 +1394,7 @@ class _HabitCard extends StatelessWidget {
     required this.isCompletedToday,
     required this.hasRelapseHistory,
     required this.isTrackingActionInProgress,
+    required this.referenceTodayLocalDayKey,
     required this.monthlyCells,
     required this.onQuickAction,
     required this.onShowDetails,
@@ -1407,6 +1409,7 @@ class _HabitCard extends StatelessWidget {
   final bool isCompletedToday;
   final bool hasRelapseHistory;
   final bool isTrackingActionInProgress;
+  final String referenceTodayLocalDayKey;
   final List<HabitMonthCell> monthlyCells;
   final Future<void> Function() onQuickAction;
   final VoidCallback onShowDetails;
@@ -1623,6 +1626,7 @@ class _HabitCard extends StatelessWidget {
               habitId: habit.id,
               cells: monthlyCells,
               accentColor: accentColor,
+              todayLocalDayKey: referenceTodayLocalDayKey,
               onCellTap: isTrackingActionInProgress ? null : onGridCellTap,
             ),
           ),
@@ -1743,12 +1747,14 @@ class _HabitMonthGrid extends StatelessWidget {
     required this.habitId,
     required this.cells,
     required this.accentColor,
+    required this.todayLocalDayKey,
     required this.onCellTap,
   });
 
   final String habitId;
   final List<HabitMonthCell> cells;
   final Color accentColor;
+  final String todayLocalDayKey;
   final Future<void> Function(HabitMonthCell cell)? onCellTap;
 
   @override
@@ -1758,7 +1764,7 @@ class _HabitMonthGrid extends StatelessWidget {
         const double spacing = AppSpacing.xxs;
         final double availableWidth = constraints.maxWidth - (spacing * 6);
         final double unclampedCellSize = availableWidth / 7;
-        final double cellSize = unclampedCellSize.clamp(14.0, 26.0).toDouble();
+        final double cellSize = unclampedCellSize.clamp(12.0, 24.0).toDouble();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -1773,6 +1779,7 @@ class _HabitMonthGrid extends StatelessWidget {
                       habitId: habitId,
                       cell: cell,
                       accentColor: accentColor,
+                      todayLocalDayKey: todayLocalDayKey,
                       cellSize: cellSize,
                       onTap: onCellTap == null
                           ? null
@@ -1795,6 +1802,7 @@ class _HabitMonthCell extends StatelessWidget {
     required this.habitId,
     required this.cell,
     required this.accentColor,
+    required this.todayLocalDayKey,
     required this.cellSize,
     required this.onTap,
   });
@@ -1802,6 +1810,7 @@ class _HabitMonthCell extends StatelessWidget {
   final String habitId;
   final HabitMonthCell cell;
   final Color accentColor;
+  final String todayLocalDayKey;
   final double cellSize;
   final VoidCallback? onTap;
 
@@ -1811,6 +1820,7 @@ class _HabitMonthCell extends StatelessWidget {
       context: context,
       cell: cell,
       accentColor: accentColor,
+      isToday: cell.localDayKey == todayLocalDayKey,
     );
     final bool showDayNumber = cell.isInMonth && cellSize >= 19;
     return Tooltip(
@@ -1839,29 +1849,17 @@ class _HabitMonthCell extends StatelessWidget {
               width: visual.borderWidth,
             ),
           ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: <Widget>[
-              if (showDayNumber)
-                Text(
+          child: showDayNumber
+              ? Text(
                   '${cell.dateLocal.day}',
+                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     fontSize: cellSize < 22 ? 9 : 10,
                     color: visual.textColor,
                     fontWeight: FontWeight.w600,
                   ),
-                ),
-              if (visual.showRelapseDot)
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: visual.dotColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-            ],
-          ),
+                )
+              : null,
         ),
       ),
     );
@@ -1872,23 +1870,26 @@ _MonthCellVisual _visualForCell({
   required final BuildContext context,
   required final HabitMonthCell cell,
   required final Color accentColor,
+  required final bool isToday,
 }) {
   final ColorScheme colorScheme = Theme.of(context).colorScheme;
-  final HabitSemanticColors semanticColors = context.semanticColors;
   final Color doneAccentFill = Color.alphaBlend(
     accentColor.withValues(alpha: 0.88),
     colorScheme.surfaceContainerHighest,
   );
   final Color relapseAccentFill = Color.alphaBlend(
-    semanticColors.negative.withValues(alpha: 0.28),
+    accentColor.withValues(alpha: 0.88),
     colorScheme.surfaceContainerHighest,
   );
-  final Color positiveClearFill = Color.alphaBlend(
-    semanticColors.positive.withValues(alpha: 0.24),
+  final Color neutralPastCurrentFill = Color.alphaBlend(
+    colorScheme.onSurface.withValues(alpha: 0.08),
     colorScheme.surfaceContainerHighest,
   );
-  final Color futureFill = colorScheme.surfaceContainerHighest;
-  return switch (cell.state) {
+  final Color neutralPastCurrentBorder = colorScheme.outline.withValues(
+    alpha: 0.72,
+  );
+  final Color futureFill = neutralPastCurrentFill;
+  final _MonthCellVisual baseVisual = switch (cell.state) {
     HabitMonthCellState.positiveDone => _MonthCellVisual(
       backgroundColor: doneAccentFill,
       borderColor: accentColor.withValues(alpha: 0.95),
@@ -1898,51 +1899,75 @@ _MonthCellVisual _visualForCell({
       tooltipLabel: 'Done',
     ),
     HabitMonthCellState.positiveMissed => _MonthCellVisual(
-      backgroundColor: Color.alphaBlend(
-        semanticColors.negative.withValues(alpha: 0.24),
-        colorScheme.surfaceContainerHighest,
-      ),
-      borderColor: semanticColors.negative.withValues(alpha: 0.9),
+      backgroundColor: neutralPastCurrentFill,
+      borderColor: neutralPastCurrentBorder,
       textColor: colorScheme.onSurface,
-      alpha: 0.95,
+      alpha: 0.92,
       borderWidth: 1,
       tooltipLabel: 'Missed',
     ),
     HabitMonthCellState.positiveFuture => _MonthCellVisual(
       backgroundColor: futureFill,
-      borderColor: colorScheme.outlineVariant,
+      borderColor: neutralPastCurrentBorder.withValues(alpha: 0.65),
       textColor: colorScheme.onSurfaceVariant,
-      alpha: 0.26,
-      borderWidth: 1,
+      alpha: 0.08,
+      borderWidth: 0.75,
       tooltipLabel: 'Future',
     ),
     HabitMonthCellState.negativeRelapse => _MonthCellVisual(
       backgroundColor: relapseAccentFill,
       borderColor: accentColor.withValues(alpha: 0.95),
-      textColor: colorScheme.onSurface,
+      textColor: _foregroundFor(relapseAccentFill),
       alpha: 1,
       borderWidth: 1.2,
       tooltipLabel: 'Relapse',
-      showRelapseDot: true,
-      dotColor: accentColor,
     ),
     HabitMonthCellState.negativeClear => _MonthCellVisual(
-      backgroundColor: positiveClearFill,
-      borderColor: semanticColors.positive.withValues(alpha: 0.78),
+      backgroundColor: neutralPastCurrentFill,
+      borderColor: neutralPastCurrentBorder,
       textColor: colorScheme.onSurface,
-      alpha: 0.95,
+      alpha: 0.92,
       borderWidth: 1,
       tooltipLabel: 'No relapse',
     ),
     HabitMonthCellState.negativeFuture => _MonthCellVisual(
       backgroundColor: futureFill,
-      borderColor: colorScheme.outlineVariant,
+      borderColor: neutralPastCurrentBorder.withValues(alpha: 0.65),
       textColor: colorScheme.onSurfaceVariant,
-      alpha: 0.26,
-      borderWidth: 1,
+      alpha: 0.08,
+      borderWidth: 0.75,
       tooltipLabel: 'Future',
     ),
   };
+
+  if (!isToday || !cell.isInMonth) {
+    return baseVisual;
+  }
+
+  final bool isNeutralToday = switch (cell.state) {
+    HabitMonthCellState.positiveMissed ||
+    HabitMonthCellState.negativeClear => true,
+    _ => false,
+  };
+  if (isNeutralToday) {
+    return _MonthCellVisual(
+      backgroundColor: Colors.white,
+      borderColor: colorScheme.onSurface.withValues(alpha: 0.9),
+      textColor: Colors.black,
+      alpha: 1,
+      borderWidth: 1.6,
+      tooltipLabel: baseVisual.tooltipLabel,
+    );
+  }
+
+  return _MonthCellVisual(
+    backgroundColor: baseVisual.backgroundColor,
+    borderColor: baseVisual.borderColor,
+    textColor: baseVisual.textColor,
+    alpha: baseVisual.alpha,
+    borderWidth: math.max(baseVisual.borderWidth, 1.6),
+    tooltipLabel: baseVisual.tooltipLabel,
+  );
 }
 
 class _MonthCellVisual {
@@ -1953,8 +1978,6 @@ class _MonthCellVisual {
     required this.alpha,
     required this.borderWidth,
     required this.tooltipLabel,
-    this.showRelapseDot = false,
-    this.dotColor = Colors.transparent,
   });
 
   final Color backgroundColor;
@@ -1963,8 +1986,6 @@ class _MonthCellVisual {
   final double alpha;
   final double borderWidth;
   final String tooltipLabel;
-  final bool showRelapseDot;
-  final Color dotColor;
 }
 
 enum _HabitCardMenuAction { edit, backdateRelapse, archive }
