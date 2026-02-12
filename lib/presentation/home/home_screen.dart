@@ -936,12 +936,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Column(
       children: <Widget>[
-        _MonthNavigationBar(
-          visibleMonth: _visibleMonth,
-          isViewingCurrentMonth: isViewingCurrentMonth,
-          onPreviousMonth: _showPreviousMonth,
-          onNextMonth: _showNextMonth,
-          onJumpToCurrentMonth: _jumpToCurrentMonth,
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _habitCardMaxWidth),
+            child: SizedBox(
+              width: double.infinity,
+              child: _MonthNavigationBar(
+                visibleMonth: _visibleMonth,
+                isViewingCurrentMonth: isViewingCurrentMonth,
+                onPreviousMonth: _showPreviousMonth,
+                onNextMonth: _showNextMonth,
+                onJumpToCurrentMonth: _jumpToCurrentMonth,
+              ),
+            ),
+          ),
         ),
         Expanded(
           child: ListView.separated(
