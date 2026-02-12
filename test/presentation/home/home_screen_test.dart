@@ -1261,6 +1261,51 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('wide screens center cards with max width constraint', (
+      final WidgetTester tester,
+    ) async {
+      const double maxCardWidth = 840;
+      tester.view.physicalSize = const Size(1200, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final _FakeHabitRepository repository = _FakeHabitRepository(
+        seedHabits: <Habit>[
+          Habit(
+            id: 'habit-1',
+            name: 'Read',
+            iconKey: 'book',
+            colorHex: '#1C7C54',
+            mode: HabitMode.positive,
+            createdAtUtc: DateTime.utc(2026, 2, 1, 8),
+          ),
+        ],
+      );
+
+      await _pumpHomeScreen(
+        tester: tester,
+        repository: repository,
+        eventRepository: _FakeHabitEventRepository(),
+        clock: () => DateTime(2026, 2, 15, 9),
+      );
+
+      final Finder cardFinder = find.byKey(
+        const ValueKey<String>('habit_card_habit-1'),
+      );
+      expect(cardFinder, findsOneWidget);
+
+      final Rect cardRect = tester.getRect(cardFinder);
+      expect(cardRect.width, lessThanOrEqualTo(maxCardWidth + 0.001));
+
+      final Size screenSize = tester.getSize(find.byType(Scaffold));
+      final double leftMargin = cardRect.left;
+      final double rightMargin = screenSize.width - cardRect.right;
+      expect(leftMargin, closeTo(rightMargin, 1));
+    });
   });
 
   group('HomeScreen Stage 7 settings + reminders flows', () {

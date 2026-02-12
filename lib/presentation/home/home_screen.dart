@@ -31,6 +31,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   static const int _defaultReminderTimeMinutes = 1200;
+  static const double _habitCardMaxWidth = 420;
 
   final AppLogger _logger = AppLogger.instance;
 
@@ -956,35 +957,49 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             itemBuilder: (final BuildContext context, final int index) {
               final Habit habit = _habits[index];
-              return _HabitCard(
-                key: ValueKey<String>('habit_card_${habit.id}'),
-                habit: habit,
-                streakSummary:
-                    _streakLabelsByHabitId[habit.id] ??
-                    _fallbackStreakSummary(habit),
-                isCompletedToday: _completedTodayHabitIds.contains(habit.id),
-                hasRelapseHistory:
-                    _latestRelapseEventForHabit(habit.id) != null,
-                isTrackingActionInProgress: _trackingHabitIds.contains(
-                  habit.id,
+              return Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: _habitCardMaxWidth,
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: _HabitCard(
+                      key: ValueKey<String>('habit_card_${habit.id}'),
+                      habit: habit,
+                      streakSummary:
+                          _streakLabelsByHabitId[habit.id] ??
+                          _fallbackStreakSummary(habit),
+                      isCompletedToday: _completedTodayHabitIds.contains(
+                        habit.id,
+                      ),
+                      hasRelapseHistory:
+                          _latestRelapseEventForHabit(habit.id) != null,
+                      isTrackingActionInProgress: _trackingHabitIds.contains(
+                        habit.id,
+                      ),
+                      referenceTodayLocalDayKey: todayLocalDayKey,
+                      monthlyCells: buildHabitMonthCells(
+                        mode: habit.mode,
+                        events:
+                            _eventsByHabitId[habit.id] ?? const <HabitEvent>[],
+                        monthLocal: _visibleMonth,
+                        referenceTodayLocalDayKey: todayLocalDayKey,
+                        weekStart: _appSettings.weekStart,
+                      ),
+                      onQuickAction: () => _onQuickActionTap(habit),
+                      onShowDetails: () {
+                        _showHabitDetails(habit);
+                      },
+                      onGridCellTap: (final HabitMonthCell cell) =>
+                          _onGridCellTap(habit: habit, cell: cell),
+                      onEdit: () => _editHabit(habit),
+                      onBackdateRelapse: () => _promptBackdatedRelapse(habit),
+                      onArchive: () => _archiveHabit(habit),
+                    ),
+                  ),
                 ),
-                referenceTodayLocalDayKey: todayLocalDayKey,
-                monthlyCells: buildHabitMonthCells(
-                  mode: habit.mode,
-                  events: _eventsByHabitId[habit.id] ?? const <HabitEvent>[],
-                  monthLocal: _visibleMonth,
-                  referenceTodayLocalDayKey: todayLocalDayKey,
-                  weekStart: _appSettings.weekStart,
-                ),
-                onQuickAction: () => _onQuickActionTap(habit),
-                onShowDetails: () {
-                  _showHabitDetails(habit);
-                },
-                onGridCellTap: (final HabitMonthCell cell) =>
-                    _onGridCellTap(habit: habit, cell: cell),
-                onEdit: () => _editHabit(habit),
-                onBackdateRelapse: () => _promptBackdatedRelapse(habit),
-                onArchive: () => _archiveHabit(habit),
               );
             },
           ),
